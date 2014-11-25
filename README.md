@@ -1,6 +1,6 @@
 # jsonrpc11
 
-[![Build Status](https://travis-ci.org/bcachet/jsonrpc11.png?branch=master)](https://travis-ci.org/bcachet/jsonrpc11)
+[![Build Status](https://travis-ci.org/bcachet/jsonrpc11.svg)](https://travis-ci.org/bcachet/jsonrpc11)
 
 ## Build environment
 

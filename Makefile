@@ -20,7 +20,7 @@ docs: $(OUTPUT_DIR)/CMakeFiles
 prepare: $(OUTPUT_DIR)/CMakeFiles
 	@$(MAKE_CMD) catch
 	@$(MAKE_CMD) hippomocks
-	@pip install -r docs/requirements.txt
+	@-pip install -r docs/requirements.txt
 
 $(OUTPUT_DIR)/CMakeFiles:
 	@mkdir -p $(OUTPUT_DIR)
