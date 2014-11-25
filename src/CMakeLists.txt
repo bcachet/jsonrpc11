@@ -1,0 +1,38 @@
+############################################################
+#           Build Library
+############################################################
+
+FILE(GLOB_RECURSE
+    LIBRARY_SRC
+    *.cpp
+    *.cc
+    *.cxx
+    *.c
+    )
+
+ADD_LIBRARY(${LIBRARY_NAME}static
+    STATIC
+    ${LIBRARY_SRC}
+    )
+
+IF (NOT DEFINED PROJECT_BUILD_SHARED OR NOT PROJECT_BUILD_SHARED)
+  SET_TARGET_PROPERTIES(${LIBRARY_NAME}static PROPERTIES
+    VERSION ${LIBRARY_VERSION_STRING}
+    OUTPUT_NAME ${LIBRARY_NAME}
+    CLEAN_DIRECT_OUTPUT 1)
+  INSTALL(TARGETS ${LIBRARY_NAME}static DESTINATION lib)
+ENDIF()
+
+
+IF(PROJECT_BUILD_SHARED)
+  ADD_LIBRARY(${LIBRARY_NAME}shared
+      SHARED
+      ${LIBRARY_SRC}
+      )
+  SET_TARGET_PROPERTIES(${LIBRARY_NAME}shared PROPERTIES
+    VERSION ${LIBRARY_VERSION_STRING}
+    OUTPUT_NAME ${LIBRARY_NAME}
+    CLEAN_DIRECT_OUTPUT 1)
+  INSTALL(TARGETS ${LIBRARY_NAME}shared DESTINATION lib)
+ENDIF()
+

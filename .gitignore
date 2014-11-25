@@ -1,0 +1,40 @@
+build
+bin
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.pdb
+*.ilk
+
+# Compiled Dynamic libraries
+*.so
+*.dll
+
+!vendor/CMakeLists.txt
+vendor/include
+vendor/lib
+vendor/bin
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executable
+*.exe
+*.out
+
+# VIM related files
+*.swp
+.clang_complete
+
+# Cached files
+tmp/
+cache.sqlite
+
+# Python stuff (Sphinx documentation)
+*.pyc
+

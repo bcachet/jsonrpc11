@@ -1,0 +1,19 @@
+language: cpp
+compiler:
+  - gcc
+  - clang
+branches:
+  only:
+    - master
+    - develop
+notifications:
+  recipients:
+    - bertrand.cachet@gmail.com
+  email:
+    on_success: change
+    on_failure: always
+before_script:
+  - make prepare
+script: 
+  - make tests
+

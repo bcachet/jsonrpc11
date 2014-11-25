@@ -1,0 +1,17 @@
+PROJECT_NAME = JSONRPC11
+OUTPUT_DIRECTORY = build/doxygen
+HTML_OUTPUT = .
+WARNINGS = YES
+RECURSIVE = YES
+INPUT = include src vendor/include/
+FILE_PATTERNS = *.h *.hpp *.c *.cpp *.cc 
+SEARCHENGINE = YES
+GENERATE_LATEX = NO
+HAVE_DOT               = YES
+CLASS_GRAPH            = YES
+COLLABORATION_GRAPH    = YES
+GROUP_GRAPHS           = YES
+INCLUDE_GRAPH          = YES
+INCLUDED_BY_GRAPH      = YES
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
