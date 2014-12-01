@@ -12,10 +12,10 @@ bin
 *.so
 *.dll
 
-!vendor/CMakeLists.txt
-vendor/include
-vendor/lib
-vendor/bin
+!thirdparty/CMakeLists.txt
+thirdparty/include
+thirdparty/lib
+thirdparty/bin
 
 # Compiled Static libraries
 *.lai

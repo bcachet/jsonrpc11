@@ -20,6 +20,7 @@ docs: $(OUTPUT_DIR)/CMakeFiles
 prepare: $(OUTPUT_DIR)/CMakeFiles
 	@$(MAKE_CMD) catch
 	@$(MAKE_CMD) hippomocks
+	@$(MAKE_CMD) json11 
 	@-pip install -r docs/requirements.txt
 
 $(OUTPUT_DIR)/CMakeFiles:
