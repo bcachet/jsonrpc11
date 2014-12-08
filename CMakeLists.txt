@@ -9,7 +9,6 @@ PROJECT(${LIBRARY_NAME})
 SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
 
 INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/src) # for templates implementation
 
 ################################################
 #   COMPILATION FLAGS
@@ -70,4 +69,3 @@ IF(USE_VIM_CLANG_COMPLETE)
     FILE(APPEND .clang_complete "-I${PATH}\n")
   ENDFOREACH(PATH)
 ENDIF()
-
