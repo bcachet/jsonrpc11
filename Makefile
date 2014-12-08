@@ -18,9 +18,9 @@ docs: $(OUTPUT_DIR)/CMakeFiles
 	@doxygen docs/Doxyfile
 
 prepare: $(OUTPUT_DIR)/CMakeFiles
-	@$(MAKE_CMD) catch
-	@$(MAKE_CMD) hippomocks
-	@$(MAKE_CMD) json11 
+	@$(MAKE_CMD) CatchTool
+	@$(MAKE_CMD) HippomocksTool
+	@$(MAKE_CMD) Json11Lib
 	@-pip install -r docs/requirements.txt
 
 $(OUTPUT_DIR)/CMakeFiles:
