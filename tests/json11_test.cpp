@@ -38,9 +38,9 @@ TEST_CASE("Json type conversion", "[json11]") {
 }
 
 bool compare(Json::shape const&  l, Json::shape const& r) {
-  auto sort_params = [](std::pair<std::string, Json::Type> l,
-      std::pair<std::string, Json::Type> r) {
-    return l.first.compare(r.first) > 0;
+  auto sort_params = [](std::pair<std::string, Json::Type> lh,
+      std::pair<std::string, Json::Type> rh) {
+    return lh.first.compare(rh.first) > 0;
   };
   if (l.size() == r.size()) {
     std::list<std::pair<std::string, Json::Type>> ll(l), rl(r);
@@ -58,3 +58,4 @@ TEST_CASE("Json shape can be compared") {
   REQUIRE(compare(same_def_but_mixed, circle_def));
   REQUIRE_FALSE(compare(different_def, circle_def));
 }
+
