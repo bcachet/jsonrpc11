@@ -25,5 +25,5 @@ prepare: $(OUTPUT_DIR)/CMakeFiles
 
 $(OUTPUT_DIR)/CMakeFiles:
 	@mkdir -p $(OUTPUT_DIR)
-	@cd $(OUTPUT_DIR) && cmake ..
+	@cd $(OUTPUT_DIR) && cmake -DCMAKE_MODULE_PATH=./CMake ..
 	@make prepare
