@@ -31,9 +31,11 @@ thirdparty/bin
 *.swp
 .clang_complete
 
-# Cached files
-tmp/
-cache.sqlite
+# CLion
+.idea
+
+# CTest
+Testing
 
 # Python stuff (Sphinx documentation)
 *.pyc

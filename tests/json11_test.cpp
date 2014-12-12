@@ -1,8 +1,6 @@
 #include <string>
 #include <list>
-#include <algorithm>
 #include <iostream>
-#include <functional>
 
 #include <catch.hpp>
 
@@ -52,7 +50,7 @@ TEST_CASE("Json type conversion", "[json11]") {
   public:
     int x;
     int y;
-    Point(int x, int y) : x(x), y(y) {}
+    Point(int x_, int y_) : x(x_), y(y_) {}
     explicit Point(Json o) : x(o["x"].int_value()), y(o["y"].int_value()) {}
   };
   Point p(Json::parse(circle["center"].dump(), err));
