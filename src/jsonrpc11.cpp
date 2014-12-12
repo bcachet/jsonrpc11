@@ -1,20 +1,24 @@
+#include <algorithm>
+
 #include <jsonrpc11.hpp>
 
 namespace jsonrpc11
 {
-
-  MethodDefinition::MethodDefinition(Json::shape const& s) :
-    std::list<param>(s)
+  bool compare(param const& l, param const& r)
   {
-    _sort_by_param_name = [](param lh, param rh) -> bool {
-      return lh.first.compare(rh.first) > 0;
-    };
-    sort(_sort_by_param_name);
+    return (l.first == r.first) && (l.second == r.second);
   }
 
-  bool MethodDefinition::operator==(MethodDefinition const& other)
+  bool compare(Json::shape const& l, Json::shape const& r)
   {
-    return (size() == other.size()) && std::equal(begin(), end(), other.begin());
+    if (l.size() == r.size())
+    {
+      return std::all_of(l.begin(), l.end(), [&r](param p) -> bool {
+        return std::any_of(r.begin(), r.end(), [&p](param const & other_p) -> bool {
+          return compare(p, other_p);
+        });
+      });
+    }
+    return false;
   }
-
 }

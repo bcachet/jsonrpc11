@@ -10,16 +10,11 @@ using namespace json11;
 namespace jsonrpc11
 {
   typedef std::pair<std::string, Json::Type> param;
-  class MethodDefinition : public std::list<param>
-  {
-  public:
-    explicit MethodDefinition(Json::shape const & s);
-    bool operator==(MethodDefinition const & other);
 
-  private:
-    std::function<bool(param, param)> _sort_by_param_name;
-  };
+  bool compare(Json::shape const& l, Json::shape const& r);
 }
+
+
 
 #endif
 
