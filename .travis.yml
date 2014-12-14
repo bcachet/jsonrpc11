@@ -10,7 +10,7 @@ notifications:
     - bertrand.cachet@gmail.com
   email:
     on_success: change
-    on_failure: always
+    on_failure: change
 before_script:
   - make prepare
 script: 
