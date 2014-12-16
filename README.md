@@ -7,31 +7,25 @@ JSON-RPC server based on [json11](https://github.com/dropbox/json11) library.
 ```cpp
 #include <cstdio>
 #include <iostream>
+#include <numeric>
+#include <list>
 
 #include <jsonrpc11.hpp>
 using namespace jsonrpc11;
 
 const int ESCAPE = 27;
 
-class Point {
-public:
-    int x;
-    int y;
-    Point (int x, int y) : x(x), y(y) {}
-    Point (Json::object o) : x(o["x"].int_value()), y(o["y"].int_value()) {}
-    std::ostream& operator<<(std::ostream& os, const Point& obj) {
-      os << "(X: " << x << ", Y: " << y << ")";
-    }
-};
-
-void draw_circle(Json::object center_as_json, int radius) {
-  Point center(center_as_json);
-  std::cout << "Draw a circle at position" << center << " with radius: " << radius << std::endl;
+Json add(std::list<double>const& values) {
+  double result = std::accumulate(values.cbegin(), values.cend(), 0.0, [](double &res, double const& x)
+  {
+    return res += static_cast<double>(x);
+  });
+  return Json::object{ { "result", result } };
 }
 
 int main() {
-  JsonRpcServer server(TCP, 8080);
-  server.bindMethod("circle", {{"center", Json::OBJECT}, {"radius", Json::NUMBER}}, &draw_circle);
+  JsonRpcServer server(8080, TCP);
+  server.register_function("add", {Json::NUMBER}, add);
   server.start();
   while (std::getchar() != ESCAPE) {
   }
@@ -43,7 +37,7 @@ int main() {
 You can send order to the server with cURL command:
 
 ```sh
-curl --data "{\"jsonrpc\":\"2.0\",\"method\":\"circle\",\"id\":1,\"params\":{\"center\":{\"x\": 10, \"y\": 10}, \"radius\": 10}}" localhost:8080
+curl --data "{\"jsonrpc\":\"2.0\",\"method\":\"add\",\"id\":1,\"params\":[1, 1, 1]" localhost:8080
 ```
 
 ## Build environment
