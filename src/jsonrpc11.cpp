@@ -1,72 +1,76 @@
-#include <algorithm>
-
 #include <jsonrpc11.hpp>
-#include <iostream>
-
-using std::pair;
-using std::string;
 
 namespace jsonrpc11
 {
-  bool compare(pair<string, Json::Type> const& l, pair<string, Json::Type> const& r)
+
+  void JsonRpcHandler::register_function(std::string name, Json::shape def, std::function<Json(Json)> cb)
   {
-    return (l.first == r.first) && (l.second == r.second);
+    methods_[name].push_back(std::make_shared<FunctionDefinitionWithNamedParams>(def, cb));
   }
 
-  bool compare(Json::shape const& l, Json::shape const& r)
+  void JsonRpcHandler::register_function(std::string name, std::function<Json()> cb)
   {
-    return (l.size() == r.size()) && std::all_of(l.begin(), l.end(), [&r](pair<string, Json::Type> p) -> bool {
-      return std::any_of(r.begin(), r.end(), [&p](pair<string, Json::Type> const & other_p) -> bool {
-        return compare(p, other_p);
-      });
+    methods_[name].push_back(std::make_shared<FunctionDefinitionWithNoParams>(cb));
+  }
+
+  JsonRpcResponse JsonRpcHandler::handle(std::string message)
+  {
+    std::string err = "";
+    Json req = Json::parse(message, err);
+    err = "";
+    if (!(req.has_shape({ { "jsonrpc", Json::STRING }, { "method", Json::STRING } }, err) && req["jsonrpc"].string_value() == "2.0"))
+      return JsonRpcResponse(Json(), JsonRpcResponse::INVALID_MSG, err);
+    std::string meth_name = req["method"].string_value();
+    if (!(methods_.count(meth_name) > 0))
+      return JsonRpcResponse(Json(), JsonRpcResponse::METHOD_NOT_FOUND, "Method " + req["method"].string_value() + " not found");
+    err = "";
+    Json params = req["params"];
+    std::list<std::shared_ptr<FunctionDefinition>>::iterator meth = std::find_if(methods_[meth_name].begin(), methods_[meth_name].end(), [&params, &err](std::shared_ptr<FunctionDefinition> fd) -> bool {
+      return fd->validate_params(params, err);
     });
+    if (meth == methods_[meth_name].end())
+      return JsonRpcResponse(Json(), JsonRpcResponse::INVALID_PARAMS, err);
+    return JsonRpcResponse((*meth)->call_with_params(params), JsonRpcResponse::OK);
   }
 
-  void JsonRpcHandler::bindMethodToCallback(string name, MethodDefinition definition, Callback cb) {
-    methods_[name].push_back(std::make_pair(definition, cb));
+  template<typename R>
+  R get_value(Json p)
+  {
+    switch (p.type())
+    {
+    case Json::ARRAY: return static_cast<R>(p.array_items());
+    default: return R();
+    }
   }
 
-
-  bool validate_params(JsonRpcHandler::MethodDefinition def, Json params) {
-    if (params.is_array()) {
-      return def.size() == 0;
-    }
-    if (params.is_object()) {
-      for (auto & item : def) {
-        if (params[item.first].type() != item.second) {
-          return false;
-        }
-      }
-      return def.size() > 0;
-    }
-    if (params.is_null()) {
-      return def.size() == 0;
-    }
-    return false;
+  template<>
+  bool get_value(Json p)
+  {
+    return p.bool_value();
   }
 
-  JsonRpcResponse JsonRpcHandler::handleMessage(Json const& msg) {
-    string err;
-
-    Json::shape const rpc_call = {{"jsonrpc", Json::STRING}, {"method", Json::STRING}};
-    if (!msg.has_shape(rpc_call, err)) {
-      return JsonRpcResponse(JsonRpcResponse::INVALID_MSG, "");
-    }
-    string method = msg["method"].string_value();
-    if (methods_.count(method) == 0) {
-      return JsonRpcResponse(JsonRpcResponse::METHOD_NOT_FOUND, "");
-    }
-    auto registered_method_defs = methods_[method];
-    Json params = msg["params"];
-
-    auto cb = std::find_if(registered_method_defs.cbegin(), registered_method_defs.cend(), [&params](pair<MethodDefinition, Callback>const& def) -> bool
-      {
-        return validate_params(def.first, params);
-      });
-    if (cb == registered_method_defs.end()) {
-      return JsonRpcResponse(JsonRpcResponse::INVALID_PARAMS, "");
-    }
-    Json result = cb->second(params);
-    return JsonRpcResponse(JsonRpcResponse::OK, result.dump());
+  template<>
+  double get_value(Json p)
+  {
+    return p.number_value();
   }
+
+  template<>
+  int get_value(Json p)
+  {
+    return p.int_value();
+  }
+
+  template<>
+  std::string get_value(Json p)
+  {
+    return p.string_value();
+  }
+
+  template<>
+  Json get_value(Json p)
+  {
+    return p;
+  }
+
 }

@@ -1,11 +1,22 @@
+#include <iostream>
+#include <numeric>
+
 #include <catch.hpp>
 
 #include <jsonrpc11.hpp>
-#include <iostream>
+
 
 using namespace jsonrpc11;
 using std::string;
 using std::initializer_list;
+
+Json add(std::list<double>const& values) {
+  double result = std::accumulate(values.cbegin(), values.cend(), 0.0, [](double &res, double const& x)
+  {
+    return res += static_cast<double>(x);
+  });
+  return Json::object{ { "result", result } };
+}
 
 TEST_CASE("Extract method name and parameters from Json-Rpc", "[jsonrpc]") {
   Json::shape echo = {{"jsonrpc", Json::STRING}, {"method", Json::STRING}, {"params", Json::ARRAY}};
@@ -38,40 +49,32 @@ TEST_CASE("Extract method name and parameters from Json-Rpc", "[jsonrpc]") {
   SECTION("Bind method to JsonRpc Server") {
     JsonRpcHandler server;
     std::function<Json(Json const&)> add_cb = [](Json const& params)->Json {return params["a"].number_value() + params["b"].number_value();};
-    server.bindMethodToCallback("add", {{"a", Json::NUMBER}, {"b", Json::NUMBER}}, add_cb);
-    string err;
-    Json valid_echo_json_rpc = Json::parse(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})", err);
-    JsonRpcResponse result = server.handleMessage(valid_echo_json_rpc);
+    server.register_function("add", {{"a", Json::NUMBER}, {"b", Json::NUMBER}}, add_cb);
+    JsonRpcResponse result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::OK);
-    Json invalid_method_name = Json::parse(R"({"jsonrpc": "2.0", "method": "aaddd", "params": {"a": 1, "b": 1}, "id": 1})", err);
-    result = server.handleMessage(invalid_method_name);
+    result = server.handle(R"({"jsonrpc": "2.0", "method": "aaddd", "params": {"a": 1, "b": 1}, "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::METHOD_NOT_FOUND);
-    Json invalid_json_rpc_format = Json::parse(R"({"method": "add", "params": {"a": 1, "b": 1}, "id": 1})", err);
-    result = server.handleMessage(invalid_json_rpc_format);
+    result = server.handle(R"({"method": "add", "params": {"a": 1, "b": 1}, "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::INVALID_MSG);
-    Json invalid_params = Json::parse(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "unknown": 1}, "id": 1})", err);
-    result = server.handleMessage(invalid_params);
+    result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "unknown": 1}, "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::INVALID_PARAMS);
   }
 
   SECTION("Add with array params") {
     JsonRpcHandler server;
-    std::function<Json(Json const&)> add_cb = [](Json const& params)->Json {
-        int sum = 0;
-        std::for_each(params.array_items().begin(), params.array_items().end(), [&sum](Json const& a) {
-            int v = a.int_value();
-            sum += v;
-        });
-        return Json::object {{"result", sum }};
-    };
-    server.bindMethodToCallback("add", {}, add_cb);
-    string err;
-    Json valid_echo_json_rpc = Json::parse(R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})", err);
-    JsonRpcResponse result = server.handleMessage(valid_echo_json_rpc);
+    server.register_function<double>("add", { Json::NUMBER }, add);
+    JsonRpcResponse result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::OK);
-    REQUIRE(Json::parse(result.get_message(), err)["result"].int_value() == 3);
-    Json invalid_echo_json_rpc = Json::parse(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})", err);
-    result = server.handleMessage(invalid_echo_json_rpc);
+    REQUIRE(result.get_response()["result"].int_value() == 3);
+    result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::INVALID_PARAMS);
+  }
+
+  SECTION("Create FunctionDefinition obj")
+  {
+    std::string err;
+    FunctionDefinition* fd = new FunctionDefitionWithPositionalParams<double>({ Json::NUMBER }, add);
+    Json result = fd->call_with_params(Json::parse(R"([1, 1, 1])", err));
+    REQUIRE((int)(result["result"].number_value()) == 3);
   }
 }
