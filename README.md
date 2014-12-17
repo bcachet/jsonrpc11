@@ -23,9 +23,18 @@ Json add(std::list<double>const& values) {
   return Json::object{ { "result", result } };
 }
 
+Json say(std::string const& what, int const & times)
+{
+  std::string res = ""
+  for (int i = 0; i < times; ++i)
+    res += what;
+  return Json::object {{"result", res}};
+}
+
 int main() {
   JsonRpcServer server(8080, TCP);
   server.register_function("add", {Json::NUMBER}, add);
+  server.register_function<std::string, int>("say", {{"what", Json::STRING}, {"times", Json::NUMBER}}, say);
   server.start();
   while (std::getchar() != ESCAPE) {
   }

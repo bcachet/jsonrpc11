@@ -18,6 +18,15 @@ Json add(std::list<double>const& values) {
   return Json::object{ { "result", result } };
 }
 
+
+Json say(std::string what, int times )
+{
+  for (int i = 0; i < times; ++i) {
+    std::cout << what << std::endl;
+  }
+  return Json();
+}
+
 TEST_CASE("Extract method name and parameters from Json-Rpc", "[jsonrpc]") {
   Json::shape echo = {{"jsonrpc", Json::STRING}, {"method", Json::STRING}, {"params", Json::ARRAY}};
   SECTION("Json-Rpc message with method name and params") {
@@ -48,8 +57,8 @@ TEST_CASE("Extract method name and parameters from Json-Rpc", "[jsonrpc]") {
 
   SECTION("Bind method to JsonRpc Server") {
     JsonRpcHandler server;
-    std::function<Json(Json const&)> add_cb = [](Json const& params)->Json {return params["a"].number_value() + params["b"].number_value();};
-    server.register_function("add", {{"a", Json::NUMBER}, {"b", Json::NUMBER}}, add_cb);
+    std::function<Json(double, double)> add = [](double const& a, double const& b)->Json {return a + b;};
+    server.register_function("add", {{"a", Json::NUMBER}, {"b", Json::NUMBER}}, add);
     JsonRpcResponse result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})");
     REQUIRE(result.get_status() == JsonRpcResponse::OK);
     result = server.handle(R"({"jsonrpc": "2.0", "method": "aaddd", "params": {"a": 1, "b": 1}, "id": 1})");
@@ -77,4 +86,5 @@ TEST_CASE("Extract method name and parameters from Json-Rpc", "[jsonrpc]") {
     Json result = fd->call_with_params(Json::parse(R"([1, 1, 1])", err));
     REQUIRE((int)(result["result"].number_value()) == 3);
   }
+
 }

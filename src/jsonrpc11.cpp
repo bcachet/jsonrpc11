@@ -3,22 +3,12 @@
 namespace jsonrpc11
 {
 
-  void JsonRpcHandler::register_function(std::string name, Json::shape def, std::function<Json(Json)> cb)
-  {
-    methods_[name].push_back(std::make_shared<FunctionDefinitionWithNamedParams>(def, cb));
-  }
-
-  void JsonRpcHandler::register_function(std::string name, std::function<Json()> cb)
-  {
-    methods_[name].push_back(std::make_shared<FunctionDefinitionWithNoParams>(cb));
-  }
-
   JsonRpcResponse JsonRpcHandler::handle(std::string message)
   {
     std::string err = "";
     Json req = Json::parse(message, err);
     err = "";
-    if (!(req.has_shape({ { "jsonrpc", Json::STRING }, { "method", Json::STRING } }, err) && req["jsonrpc"].string_value() == "2.0"))
+    if (!(req.has_shape({{"jsonrpc", Json::STRING}, {"method", Json::STRING}}, err) && (req["jsonrpc"].string_value() == "2.0")))
       return JsonRpcResponse(Json(), JsonRpcResponse::INVALID_MSG, err);
     std::string meth_name = req["method"].string_value();
     if (!(methods_.count(meth_name) > 0))
