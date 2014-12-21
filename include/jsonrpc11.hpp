@@ -8,6 +8,11 @@
 
 #include <json11.hpp>
 
+#include "jsonrpc11/request.hpp"
+#include "jsonrpc11/response.hpp"
+
+#include <iostream>
+
 using namespace json11;
 
 #ifdef _MSC_VER
@@ -18,21 +23,6 @@ using namespace json11;
 
 namespace jsonrpc11
 {
-  class JsonRpcResponse {
-  public:
-    enum Status {OK, METHOD_NOT_FOUND, INVALID_PARAMS, INVALID_MSG};
-
-    JsonRpcResponse(Json resp, Status s = OK, std::string m = "") : status_(s), message_(m), response_(resp) {};
-
-    Status get_status() {return status_;}
-    std::string get_message() {return message_;}
-    Json get_response() { return response_; }
-  private:
-    Status status_;
-    std::string message_;
-    Json response_;
-  };
-
   class FunctionDefinition
   {
     
@@ -105,6 +95,8 @@ namespace jsonrpc11
 
   template<typename A>
   class FunctionDefitionWithPositionalParam : public FunctionDefinition {
+    std::vector<Json::Type> params_def_;
+    std::function<Json(std::list<A>const&)> callback_;
     Json call_with_params(Json const& params) override
     {
       std::list<A> cb_params;
@@ -127,8 +119,6 @@ namespace jsonrpc11
       default: return false;
       }
     }
-    std::vector<Json::Type> params_def_;
-    std::function<Json(std::list<A>const&)> callback_;
   public:
     FunctionDefitionWithPositionalParam(std::initializer_list<Json::Type> params_def, std::function<Json(std::list<A>)> cb) :
       params_def_(params_def),
@@ -146,7 +136,11 @@ namespace jsonrpc11
 
   template <>
   class FunctionDefinitionWithNamedParams<> : public FunctionDefinition {
+  protected:
+    std::vector<std::pair<std::string, Json::Type>> params_def_;
+  private:
     bool validate_params(Json const &params, std::string &err) override {
+      err = "";
       return std::all_of(params_def_.begin(), params_def_.end(), [&params, &err](std::pair<std::string, Json::Type> p_def) -> bool {
         if (params[p_def.first].type() == p_def.second)
           return true;
@@ -157,22 +151,18 @@ namespace jsonrpc11
         }
       });
     }
-  protected:
-    std::vector<std::pair<std::string, Json::Type>> params_def_;
+
   public:
     FunctionDefinitionWithNamedParams(Json::shape def) : params_def_(def) {}
   };
 
   template <typename A>
   class FunctionDefinitionWithNamedParams<A> : public FunctionDefinitionWithNamedParams<> {
-
+    std::function<Json(A)> callback_;
     Json call_with_params(Json const& params) override
     {
       return callback_(get_value<A>(params[params_def_[0].first]));
     }
-
-    std::function<Json(A)> callback_;
-
   public:
     FunctionDefinitionWithNamedParams(Json::shape def, std::function<Json(A)> cb) :
       FunctionDefinitionWithNamedParams<>(def),
@@ -183,14 +173,12 @@ namespace jsonrpc11
 
   template <typename A, typename B>
   class FunctionDefinitionWithNamedParams<A, B> : public FunctionDefinitionWithNamedParams<> {
+    std::function<Json(A, B)> callback_;
 
     Json call_with_params(Json const& params) override
     {
       return callback_(get_value<A>(params[params_def_[0].first]), get_value<B>(params[params_def_[1].first]));
     }
-
-    std::function<Json(A, B)> callback_;
-
   public:
     FunctionDefinitionWithNamedParams(Json::shape def, std::function<Json(A, B)> cb) :
         FunctionDefinitionWithNamedParams<>(def),
@@ -199,6 +187,8 @@ namespace jsonrpc11
   };
 
   class FunctionDefinitionWithNoParams : public FunctionDefinition {
+    std::function<Json()> callback_;
+
     bool validate_params(Json const& p, std::string&) override
     {
       return p.type() == Json::NUL;
@@ -208,7 +198,7 @@ namespace jsonrpc11
     {
       return callback_();
     }
-    std::function<Json()> callback_;
+
   public:
     FunctionDefinitionWithNoParams(std::function<Json()> cb) :
       callback_(cb) {}
@@ -248,7 +238,7 @@ namespace jsonrpc11
       methods_[name].push_back(std::make_shared<FunctionDefinitionWithNoParams>(cb));
     };
 
-    JsonRpcResponse handle(std::string message);
+    Response handle(std::string message);
 
   private:
     std::map<std::string, std::list<std::shared_ptr<FunctionDefinition>>> methods_;

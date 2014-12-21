@@ -3,34 +3,30 @@
 namespace jsonrpc11
 {
 
-  JsonRpcResponse JsonRpcHandler::handle(std::string message)
+  Response JsonRpcHandler::handle(std::string message)
   {
     std::string err = "";
-    Json req = Json::parse(message, err);
-    err = "";
-    if (!(req.has_shape({{"jsonrpc", Json::STRING}, {"method", Json::STRING}}, err) && (req["jsonrpc"].string_value() == "2.0")))
-      return JsonRpcResponse(Json(), JsonRpcResponse::INVALID_MSG, err);
-    std::string meth_name = req["method"].string_value();
-    if (!(methods_.count(meth_name) > 0))
-      return JsonRpcResponse(Json(), JsonRpcResponse::METHOD_NOT_FOUND, "Method " + req["method"].string_value() + " not found");
-    err = "";
-    Json params = req["params"];
-    std::list<std::shared_ptr<FunctionDefinition>>::iterator meth = std::find_if(methods_[meth_name].begin(), methods_[meth_name].end(), [&params, &err](std::shared_ptr<FunctionDefinition> fd) -> bool {
+    Request req(Json::parse(message, err));
+    if (err != "")
+      return Response(Json(), Error(PARSE_ERROR, "Invalid Json", err), Id());
+    if (!req.is_valid(err))
+      return Response(Json(), Error(INVALID_REQUEST, "Invalid Request", err), req.id());
+    if (!(methods_.count(req.method()) > 0))
+      return Response(Json(), Error(METHOD_NOT_FOUND, "Method " + req.method() + " not found"), req.id());
+    Json params = req.parameters();
+    auto methods = methods_[req.method()];
+    auto meth = std::find_if(methods.begin(), methods.end(), [&params, &err](std::shared_ptr<FunctionDefinition> fd) -> bool {
       return fd->validate_params(params, err);
     });
-    if (meth == methods_[meth_name].end())
-      return JsonRpcResponse(Json(), JsonRpcResponse::INVALID_PARAMS, err);
-    return JsonRpcResponse((*meth)->call_with_params(params), JsonRpcResponse::OK);
+    if (meth == methods.end())
+      return Response(Json(), Error(INVALID_PARAMS, "Invalid params for method " + req.method(), err), req.id());
+    return Response((*meth)->call_with_params(params), OK, req.id());
   }
 
   template<typename R>
   R get_value(Json p)
   {
-    switch (p.type())
-    {
-    case Json::ARRAY: return static_cast<R>(p.array_items());
-    default: return R();
-    }
+    return R(p);
   }
 
   template<>
