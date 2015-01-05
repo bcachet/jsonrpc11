@@ -8,133 +8,150 @@
 
 using namespace jsonrpc11;
 using std::string;
-using std::initializer_list;
 
-class Talker
-{
+string concatenate(string what, int times) {
+  std::list<string> words(times, what);
+  return std::accumulate(words.begin(), words.end(), std::string());
+}
+
+class Talker {
 public:
   std::string what;
+  int times;
 
   Talker(json11::Json const & item) {
     what = item["what"].string_value();
+    times = item["times"].int_value();
+  }
+
+  string say() {
+    return concatenate(what, times);
   }
 };
 
-TEST_CASE("Check Json-Rpc message validity", "[jsonrpc]")
-{
-  JsonRpcHandler server;
-  SECTION("Invalid message")
-  {
-    Response const result = server.handle(R"({"method": "add", "params": {"a": 1, "b": 1}, "id": 1})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == INVALID_REQUEST);
-  }
-
-  SECTION("Invalid method name")
-  {
-    auto result = server.handle(R"({"jsonrpc": "2.0", "method": "aaddd", "params": {"a": 1, "b": 1}, "id": 1})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == METHOD_NOT_FOUND);
-  }
-
-  SECTION("Parse error")
-  {
-    auto result = server.handle(R"({"jsonrpc": "2.0", "method})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == PARSE_ERROR);
-  }
+bool compare_results(Json left, Json right, std::initializer_list<string> keys) {
+  return std::all_of(keys.begin(), keys.end(), [&left, &right](string key) -> bool {
+    if (left[key] != right[key])
+      std::cout << "Inequality for \"" + key + "\" key: " << left[key].dump() << " | " << right[key].dump() << std::endl;
+    return left[key] == right[key];
+  });
 }
 
-
-TEST_CASE("Named params with simple types support", "[jsonrpc]")
-{
+TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
   JsonRpcHandler server;
-  std::function<Json(std::string, int)> say = [](std::string what, int times)
-  {
-    REQUIRE(what == "fu");
-    REQUIRE(times == 3);
-    return Json();
+  auto check_result_for = [&server](string req, string resp) {
+    std::string err;
+    Json result = Json(server.handle(req));
+    Json expected = Json::parse(resp, err);
+    REQUIRE(compare_results(result, expected, { "jsonrpc", "id", "result" }));
+    REQUIRE(result.object_items().count("error") == expected.object_items().count("error"));
+    if (expected.object_items().count("error") > 0)
+      REQUIRE(compare_results(result["error"], expected["error"], { "code", "message" }));
+    REQUIRE(result.object_items().count("result") == expected.object_items().count("result"));
+    REQUIRE(result["result"] == expected["result"]);
   };
-  server.register_function("say", { { "what", Json::STRING }, { "times", Json::NUMBER } }, say);
 
-  SECTION("Params with invalid type")
-  {
-    auto response = server.handle(R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": "3"}, "id": 1})");
-    REQUIRE(Json(response)["error"]["code"].int_value() == INVALID_PARAMS);
+  SECTION("Check Json-Rpc Request validity", "[jsonrpc]") {
+    SECTION("Invalid Request") {
+      check_result_for(
+        R"({"method": "add", "params": {"a": 1, "b": 1}, "id": 1})",
+        R"({"jsonrpc": "2.0", "error": {"code": -32600, "message": "Invalid Request"}, "id": 1})");
+    }
+
+    SECTION("Method Not Found") {
+      check_result_for(
+        R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})",
+        R"({"jsonrpc": "2.0", "error": {"code": -32601, "message": "Method not found"}, "id": 1})");
+    }
+
+    SECTION("Parse Error") {
+      check_result_for(
+        R"({"jsonrpc": "2.0", "method": "add", "params": )",
+        R"({"jsonrpc": "2.0", "error": {"code": -32700, "message": "Parse error"}, "id": null})");
+    }
   }
 
-  SECTION("Params with invalid name")
-  {
-    auto response = server.handle(R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "unknown": 3}, "id": 1})");
-    REQUIRE(Json(response)["error"]["code"].int_value() == INVALID_PARAMS);
-  }
+  SECTION("Named parameters") {
+    server.register_function<string, int>("say", { { "what", Json::STRING }, { "times", Json::NUMBER } }, [](std::string what, int times)
+    {
 
-  SECTION("Valid params")
-  {
-    auto response = server.handle(R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": 1})");
-    REQUIRE(Json(response)["error"]["code"].int_value() == OK);
-  }
-}
+      return Json::object{ { "result", concatenate(what, times)} };
+    });
+    SECTION("Params with invalid type") {
+      check_result_for(
+        R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": "3"}, "id": 1})",
+        R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
+    }
 
-TEST_CASE("Named params with complex types support", "[jsonrpc]") {
-  JsonRpcHandler server;
+    SECTION("Params with invalid name") {
+      check_result_for(
+        R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "unknown": 3}, "id": 1})",
+        R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
+    }
 
-  std::function<Json(Json, int)> say = [](Json const& talker, int const& times) {
-    Talker t(talker);
-    REQUIRE(t.what == "fu");
-    REQUIRE(times == 3);
-    return Json();
-  };
-  server.register_function("say", { { "talker", Json::OBJECT }, { "times", Json::NUMBER } }, say);
+    SECTION("Valid params") {
+      check_result_for(
+        R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": 1})",
+        R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
+    }
 
-  SECTION("Params with complex type") {
-    auto response = server.handle(R"({"jsonrpc": "2.0", "method": "say", "params": {"talker": { "what": "fu" }, "times": 3}, "id": 1})");
-    REQUIRE(Json(response)["error"]["code"].int_value() == OK);
-  }
-}
+    SECTION("Method with complex types") {
 
-
-TEST_CASE("Positional params ", "[jsonrpc]") {
-  
-  SECTION("Callback with std::list") {
-    JsonRpcHandler server;
-    server.register_function<double>("add", { Json::NUMBER }, [](std::list<double>const& values) {
-      double result = std::accumulate(values.cbegin(), values.cend(), 0.0, [](double &res, double const& x)
-      {
-        return res += static_cast<double>(x);
+      server.register_function<Json>("say", { { "talker", Json::OBJECT } }, [](Json const& talker) {
+        Talker t(talker);
+        return Json::object{ { "result", t.say() } };
       });
-      return Json::object{ { "result", result } };
-    });
-    Response result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == OK);
-    REQUIRE(Json(result)["result"].int_value() == 3);
-    result = server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": {"a": 1, "b": 1}, "id": 1})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == INVALID_PARAMS);
+      check_result_for(
+        R"({"jsonrpc": "2.0", "method": "say", "params": {"talker": { "what": "fu", "times": 3}}, "id": 1})",
+        R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
+    }
   }
+  SECTION("Positional parameters") {
+    SECTION("Parameters of same type T -> list<T>") {
+      server.register_function<double>("add", { Json::NUMBER }, [](std::list<double>const& values) {
+        return Json::object{ { "result", std::accumulate(values.cbegin(), values.cend(), 0.0) } };
+      });
+      SECTION("Valid request") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})",
+          R"({"jsonrpc": "2.0", "result": 3, "id": 1})");
+      }
+      SECTION("Request composed of params of different types") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, "1", true], "id": 1})",
+          R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
+      }
+    }
 
-  SECTION("Callback with simple types") {
-    JsonRpcHandler server;
-    server.register_function<double, double>("add", { Json::NUMBER, Json::NUMBER }, [](double const& a, double const& b) {
-      return Json::object{ { "result", a + b } };
-    });
-    auto result = Json(server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1], "id": 1})"));
-    REQUIRE(result["error"]["code"].int_value() == OK);
-    REQUIRE(result["result"].int_value() == 2);
-    result = Json(server.handle(R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})"));
-    REQUIRE(result["error"]["code"].int_value() == INVALID_PARAMS);
-  }
-
-  SECTION("Callback with complex types") {
-
-    JsonRpcHandler server;
-    server.register_function<Json, int>("say", { Json::OBJECT, Json::NUMBER }, [](Json const& talker, int const& times) {
-      Talker t(talker);
-      REQUIRE(t.what == "fu");
-      REQUIRE(times == 3);
-      return Json();
-    });
-    Response result = server.handle(R"({"jsonrpc": "2.0", "method": "say", "params": [ {"what": "fu"}, 3], "id": 1})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == OK);
-    result = server.handle(R"({"jsonrpc": "2.0", "method": "say", "params": { "what": "fu", "times": 3 }, "id": 1})");
-    REQUIRE(Json(result)["error"]["code"].int_value() == INVALID_PARAMS);
+    SECTION("Parameters of different types") {
+      server.register_function<string, int>("say", { Json::STRING, Json::NUMBER }, [](string what, int times) {
+        return Json::object{ { "result", concatenate(what, times) } };
+      });
+      SECTION("Valid request") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3], "id": 1})",
+          R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
+      }
+      SECTION("Request with too much params") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3, 3], "id": 1})",
+          R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
+      }
+    }
+    SECTION("Parameters with complex types") {
+      std::function<Json(Json)> say = [](Json const& talker) {
+        Talker t(talker);
+        return Json::object{ { "result", t.say() } };
+      };
+      server.register_function("say", { Json::OBJECT }, say);
+      SECTION("Valid request") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "say", "params": [ {"what": "fu", "times": 3}], "id": 1})",
+          R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
+      }
+    }
   }
 }
+
 
 

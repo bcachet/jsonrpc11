@@ -30,7 +30,7 @@ namespace jsonrpc11 {
     return method_;
   }
 
-  int Request::id() const {
+  Json Request::id() const {
     return id_();
   }
 }

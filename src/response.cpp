@@ -13,11 +13,16 @@ namespace jsonrpc11 {
   };
 
   Json Response::to_json() const {
-    return Json::object {
+    Json err = error_.to_json();
+    if (err.is_null())
+      return Json::object{
         { "jsonrpc", "2.0" },
-        { "result", result_["result"] },
         { "id", id_ },
-        { "error", error_ }
-    };
+        { "result", result_["result"] } };
+    else
+      return Json::object{
+        { "jsonrpc", "2.0" },
+        { "id", id_ },
+        { "error", error_ } };
   }
 }

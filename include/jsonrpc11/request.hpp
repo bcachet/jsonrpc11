@@ -6,16 +6,15 @@
 using namespace json11;
 
 namespace jsonrpc11 {
-  int const NULL_ID = std::numeric_limits<int>::min();
+  
   class Id {
   public:
-    Id(int id = NULL_ID) : id_(id) {}
-    explicit Id(Json const& j) : id_(j == Json() ? NULL_ID : j.int_value()) {}
+    Id(Json const& id = Json()) : id_(id) {}
 
-    int operator()() const {return id_;}
-    Json to_json() const { return Json(id_ == NULL_ID ? "null" : std::to_string(id_)) ;}
+    int operator()() const {return id_.int_value();}
+    Json to_json() const { return id_ ;}
   private:
-    int id_;
+    Json id_;
   };
 
 
@@ -35,7 +34,7 @@ namespace jsonrpc11 {
 
     Json parameters() const;
     std::string method() const;
-    int id() const;
+    Json id() const;
   };
 
 }
