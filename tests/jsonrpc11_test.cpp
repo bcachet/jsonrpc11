@@ -51,7 +51,7 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
     REQUIRE(result["result"] == expected["result"]);
   };
 
-  SECTION("Check Json-Rpc Request validity", "[jsonrpc]") {
+  SECTION("Check Json-Rpc Request validity") {
     SECTION("Invalid Request") {
       check_result_for(
         R"({"method": "add", "params": {"a": 1, "b": 1}, "id": 1})",
@@ -106,6 +106,7 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
         R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
     }
   }
+
   SECTION("Positional parameters") {
     SECTION("Parameters of same type T -> list<T>") {
       server.register_function<double>("add", { Json::NUMBER }, [](std::list<double>const& values) {
@@ -150,6 +151,14 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
           R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
       }
     }
+  }
+
+  SECTION("Testing Argument parsing") {
+    std::tuple<int, int> t = parse<int, int>(Json::array({1, 2}));
+    REQUIRE(t == std::make_tuple(1, 2));
+
+    std::tuple<int, int> t2 = parse<int, int>(Json::object({{"a", 1}, {"b",2}}), {"a", "b"});
+    REQUIRE(t2 == std::make_tuple(1, 2));
   }
 }
 
