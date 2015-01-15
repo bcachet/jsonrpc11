@@ -37,8 +37,18 @@ namespace jsonrpc11
   template<typename R>
   R get_value(Json p);
 
-
-
+//  template<typename V, typename std::enable_if<std::is_same<V, std::list<typename V::value_type>>::value>::type = 0>
+  template<typename T>
+  std::list<T> get_value(Json::array p)
+  {
+    std::list<T> v;
+    std::for_each(p.begin(), p.end(), [&v](Json j)
+    {
+      v.push_back(get_value<T>(j));
+    });
+    return v;
+  }
+  
   template< std::size_t... Ns >
   struct indices
   {
@@ -67,6 +77,10 @@ namespace jsonrpc11
     return parse_impl<Args...>( p, typename make_indices<sizeof...(Args)>::type() );
   }
 
+  template<typename T>
+  std::tuple<std::list<T>> parse_to_list(Json p) {
+    return std::make_tuple(get_value<T>(p.array_items()));
+  }
 
   template<typename... Args, std::size_t... Ns>
   std::tuple<Args...> parse_impl(Json p, std::vector<std::string> n,indices<Ns...> ) {
@@ -81,12 +95,16 @@ namespace jsonrpc11
 
 
   template<typename ...T>
-  class FunctionDefitionWithPositionalParams : public FunctionDefinition {
-  };
+  class FunctionDefinitionWithPositionalParams : public FunctionDefinition {
+    std::vector<Json::Type> params_def_;
+    std::function<Json(T...)> callback_;
+  public:
+    FunctionDefinitionWithPositionalParams(std::initializer_list<Json::Type> params_def, std::function<Json(T...)> cb) :
+      params_def_(params_def),
+      callback_(cb)
+    { }
 
-  template<>
-  class FunctionDefitionWithPositionalParams<> : public FunctionDefinition{
-    bool validate_params(Json const& params, std::string&) override
+    virtual bool validate_params(Json const& params, std::string&) override
     {
       if ((!params.is_array()) || (params.array_items().size() != params_def_.size()))
         return false;
@@ -95,71 +113,35 @@ namespace jsonrpc11
           return false;
       return true;
     }
-  protected:
-    std::vector<Json::Type> params_def_;
-  public:
-    FunctionDefitionWithPositionalParams(std::initializer_list<Json::Type> def) : params_def_(def) {}
-  };
 
-  template<typename A>
-  class FunctionDefitionWithPositionalParams<A> : public FunctionDefitionWithPositionalParams<> {
     Json call_with_params(Json const& params) override
     {
-      return callback_(get_value<A>(params[0]));
+      return (Json)apply_tuple<std::function<Json(T...)>, std::tuple<T...>>(std::move(callback_), std::move(parse<T...>(params)));
     }
-
-    std::function<Json(A)> callback_;
-  public:
-    FunctionDefitionWithPositionalParams(std::initializer_list<Json::Type> params_def, std::function<Json(A)> cb) :
-      FunctionDefitionWithPositionalParams<>(params_def),
-      callback_(cb)
-    {
-
-    }
-    virtual ~FunctionDefitionWithPositionalParams() {}
+ 
   };
 
-  template<typename A, typename B>
-  class FunctionDefitionWithPositionalParams<A, B> : public FunctionDefitionWithPositionalParams<>{
-    Json call_with_params(Json const& params) override
-    {
-      return callback_(get_value<A>(params[0]), get_value<B>(params[1]));
-    }
-
-    std::function<Json(A, B)> callback_;
-  public:
-    FunctionDefitionWithPositionalParams(std::initializer_list<Json::Type> params_def, std::function<Json(A, B)> cb) :
-      FunctionDefitionWithPositionalParams<>(params_def),
-      callback_(cb)
-    {
-
-    }
-    virtual ~FunctionDefitionWithPositionalParams() {}
-  };
 
   template<typename A>
   class FunctionDefitionWithPositionalParam : public FunctionDefinition {
     std::vector<Json::Type> params_def_;
-    std::function<Json(std::list<A>const&)> callback_;
+    std::function<Json(std::list<A>)> callback_;
     Json call_with_params(Json const& params) override
     {
-      std::list<A> cb_params;
-      std::for_each(params.array_items().begin(), params.array_items().end(), [&cb_params](Json p)
-      {
-        cb_params.push_back(get_value<A>(p));
-      });
-      return callback_(cb_params);
+      return (Json)apply_tuple<std::function<Json(std::list<A>)>, std::tuple<std::list<A>>>(std::move(callback_), std::move(parse_to_list<A>(params)));
     }
 
-    bool validate_params(Json const& params, std::string&) override
+    bool validate_params(Json const& p, std::string&) override
     {
+      Json::array params = p.array_items();
       switch (params_def_.size())
       {
-      case 0: return params.array_items().size() == 0;
-      case 1:return params.array_items().size() > 0 && std::all_of(params.array_items().begin(), params.array_items().end(), [this](Json item) -> bool
-      {
-        return item.type() == params_def_[0];
-      });
+      case 0: return params.size() == 0;
+      case 1: 
+        return params.size() > 0 && 
+               std::all_of(params.begin(), params.end(), [this](Json item) -> bool {
+                 return item.type() == params_def_[0];
+               });
       default: return false;
       }
     }
@@ -167,22 +149,14 @@ namespace jsonrpc11
     FunctionDefitionWithPositionalParam(std::initializer_list<Json::Type> params_def, std::function<Json(std::list<A>)> cb) :
       params_def_(params_def),
       callback_(cb)
-    {
-
-    }
-    virtual ~FunctionDefitionWithPositionalParam() {}
+    { }
   };
 
   template <typename ...T>
   class FunctionDefinitionWithNamedParams : public FunctionDefinition {
-
-  };
-
-  template <>
-  class FunctionDefinitionWithNamedParams<> : public FunctionDefinition {
-  protected:
     std::vector<std::pair<std::string, Json::Type>> params_def_;
-  private:
+    std::function<Json(T...)> callback_;
+  public:
     bool validate_params(Json const &params, std::string &err) override {
       err = "";
       return std::all_of(params_def_.begin(), params_def_.end(), [&params, &err](std::pair<std::string, Json::Type> p_def) -> bool {
@@ -196,39 +170,23 @@ namespace jsonrpc11
       });
     }
 
-  public:
-    FunctionDefinitionWithNamedParams(Json::shape def) : params_def_(def) {}
-  };
-
-  template <typename A>
-  class FunctionDefinitionWithNamedParams<A> : public FunctionDefinitionWithNamedParams<> {
-    std::function<Json(A)> callback_;
     Json call_with_params(Json const& params) override
     {
-      return callback_(get_value<A>(params[params_def_[0].first]));
+      std::vector<std::string> names;
+      std::for_each(params_def_.begin(), params_def_.end(), [&names](std::pair<std::string, Json::Type> v) {
+        names.insert(names.end(), v.first);
+      });
+      std::tuple<T...> args = parse<T...>(params, names);
+      return (Json)apply_tuple<std::function<Json(T...)>, std::tuple<T...>>(std::move(callback_), std::move(args));
     }
   public:
-    FunctionDefinitionWithNamedParams(Json::shape def, std::function<Json(A)> cb) :
-      FunctionDefinitionWithNamedParams<>(def),
-      callback_(cb) {}
-    virtual ~FunctionDefinitionWithNamedParams() {}
+
+    FunctionDefinitionWithNamedParams(Json::shape def, std::function<Json(T...)> cb) :
+      params_def_(def),
+      callback_(cb)
+    { }
   };
 
-
-  template <typename A, typename B>
-  class FunctionDefinitionWithNamedParams<A, B> : public FunctionDefinitionWithNamedParams<> {
-    std::function<Json(A, B)> callback_;
-
-    Json call_with_params(Json const& params) override
-    {
-      return callback_(get_value<A>(params[params_def_[0].first]), get_value<B>(params[params_def_[1].first]));
-    }
-  public:
-    FunctionDefinitionWithNamedParams(Json::shape def, std::function<Json(A, B)> cb) :
-        FunctionDefinitionWithNamedParams<>(def),
-        callback_(cb) {}
-    virtual ~FunctionDefinitionWithNamedParams() {}
-  };
 
   class FunctionDefinitionWithNoParams : public FunctionDefinition {
     std::function<Json()> callback_;
@@ -245,41 +203,36 @@ namespace jsonrpc11
 
   public:
     FunctionDefinitionWithNoParams(std::function<Json()> cb) :
-      callback_(cb) {}
-    virtual ~FunctionDefinitionWithNoParams() {}
+      callback_(cb)
+    { }
   };
 
 
   class JsonRpcHandler
   {
   public:
-    template<typename A>
-    void register_function(std::string name, Json::shape def, std::function<Json(A)> cb) {
-      methods_[name].push_back(std::make_shared<FunctionDefinitionWithNamedParams<A>>(def, cb));
+
+    void register_function(std::string name, std::shared_ptr<FunctionDefinition> fd) {
+      methods_[name].push_back(fd);
     };
 
-    template<typename A, typename B>
-    void register_function(std::string name, Json::shape def, std::function<Json(A, B)> cb) {
-      methods_[name].push_back(std::make_shared<FunctionDefinitionWithNamedParams<A, B>>(def, cb));
+    template<typename ...Args>
+    void register_named_params_function(std::string name, Json::shape def, std::function<Json(Args...)> cb) {
+      register_function(name, std::make_shared<FunctionDefinitionWithNamedParams<Args...>>(def, std::function<Json(Args...)>(cb)));
+    };
+
+    template <typename ...Args>
+    void register_positional_params_function(std::string name, std::initializer_list<Json::Type> def, std::function<Json(Args...)> cb) {
+      register_function(name, std::make_shared<FunctionDefinitionWithPositionalParams<Args...>>(def, cb));
     };
 
     template <typename A>
-    void register_function(std::string name, std::initializer_list<Json::Type> def, std::function<Json(A)> cb) {
-      methods_[name].push_back(std::make_shared<FunctionDefitionWithPositionalParams<A>>(def, cb));
+    void register_positional_params_function_with_list(std::string name, std::initializer_list<Json::Type> def, std::function<Json(std::list<A>)> cb) {
+      register_function(name, std::make_shared<FunctionDefitionWithPositionalParam<A>>(def, cb));
     };
 
-    template <typename A, typename B>
-    void register_function(std::string name, std::initializer_list<Json::Type> def, std::function<Json(A, B)> cb) {
-      methods_[name].push_back(std::make_shared<FunctionDefitionWithPositionalParams<A, B>>(def, cb));
-    };
-
-    template <typename T>
-    void register_function(std::string name, std::initializer_list<Json::Type> def, std::function<Json(std::list<T>)> cb) {
-      methods_[name].push_back(std::make_shared<FunctionDefitionWithPositionalParam<T>>(def, cb));
-    };
-
-    void register_function(std::string name, std::function<Json()> cb) {
-      methods_[name].push_back(std::make_shared<FunctionDefinitionWithNoParams>(cb));
+    void register_no_params_function(std::string name, std::function<Json()> cb) {
+      register_function(name, std::make_shared<FunctionDefinitionWithNoParams>(cb));
     };
 
     Response handle(std::string message);

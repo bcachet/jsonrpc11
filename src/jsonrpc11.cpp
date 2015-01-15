@@ -1,5 +1,7 @@
 #include <jsonrpc11.hpp>
 
+#include <type_traits>
+
 namespace jsonrpc11
 {
 
@@ -22,6 +24,7 @@ namespace jsonrpc11
       return Response(Json(), Error(INVALID_PARAMS, "Invalid params", err), req.id());
     return Response((*meth)->call_with_params(params), OK, req.id());
   }
+
 
   template<typename R>
   R get_value(Json p)
