@@ -2,7 +2,8 @@
 
 #include <jsonrpc11/callback.hpp>
 
-#include <functional>
+#include <list>
+#include <numeric>
 
 
 TEST_CASE("Call function with Tuple", "[callback]") {

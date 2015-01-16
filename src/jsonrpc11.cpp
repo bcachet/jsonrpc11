@@ -1,7 +1,5 @@
 #include <jsonrpc11.hpp>
 
-#include <type_traits>
-
 namespace jsonrpc11
 {
 
@@ -17,7 +15,7 @@ namespace jsonrpc11
       return Response(Json(), Error(METHOD_NOT_FOUND, "Method not found", "Method " + req.method() + " not found"), req.id());
     Json params = req.parameters();
     auto methods = methods_[req.method()];
-    auto meth = std::find_if(methods.begin(), methods.end(), [&params, &err](std::shared_ptr<FunctionDefinition> fd) -> bool {
+    auto meth = std::find_if(methods.begin(), methods.end(), [&params, &err](std::shared_ptr<IFunctionDefinition> fd) -> bool {
       return fd->validate_params(params, err);
     });
     if (meth == methods.end())

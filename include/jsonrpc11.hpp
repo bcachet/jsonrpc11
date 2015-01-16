@@ -1,43 +1,27 @@
 #pragma once
 
-#include <vector>
 #include <list>
 #include <functional>
 #include <algorithm>
-#include <type_traits>
 
 #include <json11.hpp>
+using namespace json11;
 
+#include "jsonrpc11/callback.hpp"
+#include "jsonrpc11/arguments.hpp"
 #include "jsonrpc11/request.hpp"
 #include "jsonrpc11/response.hpp"
-#include "jsonrpc11/callback.hpp"
 
-#include <iostream>
-
-using namespace json11;
 
 #ifdef _MSC_VER
 #pragma warning(disable:4503)
 #endif
 
-// TODO: Optional params can be of different types
-
 namespace jsonrpc11
 {
-  class FunctionDefinition
-  {
-    
-  public:
-    virtual ~FunctionDefinition() {}
-
-    virtual bool validate_params(Json const&, std::string&) = 0;
-    virtual Json call_with_params(Json const&) = 0;    
-  };
-
   template<typename R>
   R get_value(Json p);
 
-//  template<typename V, typename std::enable_if<std::is_same<V, std::list<typename V::value_type>>::value>::type = 0>
   template<typename T>
   std::list<T> get_value(Json::array p)
   {
@@ -48,55 +32,66 @@ namespace jsonrpc11
     });
     return v;
   }
-  
-  template< std::size_t... Ns >
-  struct indices
+
+  template <typename ... T>
+  inline std::function<Json(Json)> apply_args(std::function<Json(T...)>&& cb, std::function<std::tuple<T...>(Json)>&& parser)
   {
-    typedef indices< Ns..., sizeof...( Ns ) > next;
+    return [&](Json json_params)
+    {
+      return apply_tuple<std::function<Json(T...)>, std::tuple<T...>>(std::move(cb), parser(json_params));
+    };
+  }
+
+  inline std::function<bool(Json, std::string&)> validate_positional_params(std::list<Json::Type> def) {
+    return [def](Json json_params, std::string &) -> bool {
+      std::list<Json::Type> params_types;
+      std::transform(json_params.array_items().begin(), json_params.array_items().end(), std::back_inserter(params_types), [](Json p) {
+        return p.type();
+      });
+      return params_types == def;
+    };
   };
 
-  template< std::size_t N >
-  struct make_indices
-  {
-    typedef typename make_indices< N - 1 >::type::next type;
+  template <typename ... T>
+  inline std::function<std::tuple<T...>(Json)> args_from_positional_params() {
+    return [](Json json_params)  -> std::tuple<T...> {
+      return parse<T...>(json_params);
+    };
   };
 
-  template<>
-  struct make_indices< 0 >
-  {
-    typedef indices<> type;
+  inline std::function<bool(Json, std::string&)> validate_named_params(std::list<std::pair<std::string, Json::Type>> def) {
+    return [def](Json json_params, std::string & err) -> bool {
+      return std::all_of(def.begin(), def.end(), [&json_params, &err](std::pair<std::string, Json::Type> p_def) -> bool {
+        err = "";
+        if (json_params[p_def.first].type() == p_def.second)
+          return true;
+        else {
+          err += err.size() > 0 ? " | " : "";
+          err += "Invalid type for " + p_def.first + " in " + json_params.dump();
+          return false;
+        }});
+    };
   };
 
-  template<typename... Args, std::size_t... Ns>
-  std::tuple<Args...> parse_impl(Json p, indices<Ns...> ) {
-    return std::make_tuple(get_value<Args>(p[Ns])...);
-  }
+  template <typename ... T>
+  inline std::function<std::tuple<T...>(Json)> args_from_named_params(std::list<std::pair<std::string, Json::Type>> def) {
+    return [def](Json json_params) -> std::tuple<T...> {
+      std::vector<std::string> names;
+      std::transform(def.begin(), def.end(), std::back_inserter(names), [](Json::shape::value_type pd) {return pd.first; });
+      return parse<T...>(json_params, names);
+    };
+  };
 
-  template<typename... Args>
-  std::tuple<Args...> parse(Json p) {
-    return parse_impl<Args...>( p, typename make_indices<sizeof...(Args)>::type() );
-  }
-
-  template<typename T>
-  std::tuple<std::list<T>> parse_to_list(Json p) {
-    return std::make_tuple(get_value<T>(p.array_items()));
-  }
-
-  template<typename... Args, std::size_t... Ns>
-  std::tuple<Args...> parse_impl(Json p, std::vector<std::string> n,indices<Ns...> ) {
-    return std::make_tuple(get_value<Args>(p[n[Ns]])...);
-  }
-
-  template<typename... Args>
-  std::tuple<Args...> parse(Json p, std::vector<std::string> n) {
-    return parse_impl<Args...>( p, n, typename make_indices<sizeof...(Args)>::type() );
-  }
-
-
+  class IFunctionDefinition
+  {
+  public:
+    virtual bool validate_params(Json const& , std::string& ) = 0;
+    virtual Json call_with_params(Json const& ) = 0;
+  };
 
   template<typename ...T>
-  class FunctionDefinitionWithPositionalParams : public FunctionDefinition {
-    std::vector<Json::Type> params_def_;
+  class FunctionDefinitionWithPositionalParams : public IFunctionDefinition {
+    std::list<Json::Type> params_def_;
     std::function<Json(T...)> callback_;
   public:
     FunctionDefinitionWithPositionalParams(std::initializer_list<Json::Type> params_def, std::function<Json(T...)> cb) :
@@ -104,107 +99,78 @@ namespace jsonrpc11
       callback_(cb)
     { }
 
-    virtual bool validate_params(Json const& params, std::string&) override
-    {
-      if ((!params.is_array()) || (params.array_items().size() != params_def_.size()))
-        return false;
-      for (size_t i = 0; i < params_def_.size(); ++i)
-        if (params_def_[i] != params[i].type())
-          return false;
-      return true;
+    virtual bool validate_params(Json const& params, std::string& err) override {
+      return validate_positional_params(params_def_)(params, err);
     }
 
-    Json call_with_params(Json const& params) override
-    {
-      return (Json)apply_tuple<std::function<Json(T...)>, std::tuple<T...>>(std::move(callback_), std::move(parse<T...>(params)));
+    Json call_with_params(Json const& params) override {
+      return apply_args<T...>(std::move(callback_), std::move(args_from_positional_params<T...>()))(params);
     }
- 
   };
-
 
   template<typename A>
-  class FunctionDefitionWithPositionalParam : public FunctionDefinition {
+  class FunctionDefitionWithPositionalParam : public IFunctionDefinition {
     std::vector<Json::Type> params_def_;
     std::function<Json(std::list<A>)> callback_;
-    Json call_with_params(Json const& params) override
-    {
-      return (Json)apply_tuple<std::function<Json(std::list<A>)>, std::tuple<std::list<A>>>(std::move(callback_), std::move(parse_to_list<A>(params)));
-    }
-
-    bool validate_params(Json const& p, std::string&) override
-    {
-      Json::array params = p.array_items();
-      switch (params_def_.size())
-      {
-      case 0: return params.size() == 0;
-      case 1: 
-        return params.size() > 0 && 
-               std::all_of(params.begin(), params.end(), [this](Json item) -> bool {
-                 return item.type() == params_def_[0];
-               });
-      default: return false;
-      }
-    }
   public:
     FunctionDefitionWithPositionalParam(std::initializer_list<Json::Type> params_def, std::function<Json(std::list<A>)> cb) :
-      params_def_(params_def),
-      callback_(cb)
+      params_def_(params_def), callback_(cb)
     { }
+
+    Json call_with_params(Json const& params) override {
+      return apply_tuple<std::function<Json(std::list<A>)>, std::tuple<std::list<A>>>(std::move(callback_), std::move(parse_to_list<A>(params)));
+    }
+
+    bool validate_params(Json const& p, std::string&) override {
+      Json::array params = p.array_items();
+      switch (params_def_.size()) {
+        case 0: return params.size() == 0;
+        case 1: 
+          return params.size() > 0 && 
+                 std::all_of(params.begin(), params.end(), [this](Json item) -> bool {
+                   return item.type() == params_def_[0];
+                 });
+        default: return false;
+      }
+    }
   };
 
+
   template <typename ...T>
-  class FunctionDefinitionWithNamedParams : public FunctionDefinition {
-    std::vector<std::pair<std::string, Json::Type>> params_def_;
+  class FunctionDefinitionWithNamedParams : public IFunctionDefinition {
+    std::list<std::pair<std::string, Json::Type>> params_def_;
     std::function<Json(T...)> callback_;
   public:
-    bool validate_params(Json const &params, std::string &err) override {
-      err = "";
-      return std::all_of(params_def_.begin(), params_def_.end(), [&params, &err](std::pair<std::string, Json::Type> p_def) -> bool {
-        if (params[p_def.first].type() == p_def.second)
-          return true;
-        else {
-          err += err.size() > 0 ? " | " : "";
-          err += "Invalid type for " + p_def.first + " in " + params.dump();
-          return false;
-        }
-      });
-    }
-
-    Json call_with_params(Json const& params) override
-    {
-      std::vector<std::string> names;
-      std::for_each(params_def_.begin(), params_def_.end(), [&names](std::pair<std::string, Json::Type> v) {
-        names.insert(names.end(), v.first);
-      });
-      std::tuple<T...> args = parse<T...>(params, names);
-      return (Json)apply_tuple<std::function<Json(T...)>, std::tuple<T...>>(std::move(callback_), std::move(args));
-    }
-  public:
-
     FunctionDefinitionWithNamedParams(Json::shape def, std::function<Json(T...)> cb) :
       params_def_(def),
       callback_(cb)
     { }
+
+    bool validate_params(Json const &params, std::string &err) override {
+      return validate_named_params(params_def_)(params, err);
+    }
+
+    Json call_with_params(Json const& params) override
+    {
+      return apply_args<T...>(std::move(callback_), std::move(args_from_named_params<T...>(params_def_)))(params);
+    }
   };
 
 
-  class FunctionDefinitionWithNoParams : public FunctionDefinition {
+  class FunctionDefinitionWithNoParams : public IFunctionDefinition {
     std::function<Json()> callback_;
-
-    bool validate_params(Json const& p, std::string&) override
-    {
-      return p.type() == Json::NUL;
-    }
-
-    Json call_with_params(Json const&) override
-    {
-      return callback_();
-    }
-
   public:
     FunctionDefinitionWithNoParams(std::function<Json()> cb) :
       callback_(cb)
     { }
+
+    bool validate_params(Json const& p, std::string&) override {
+      return p.type() == Json::NUL;
+    }
+
+    Json call_with_params(Json const&) override {
+      return callback_();
+    }
   };
 
 
@@ -212,7 +178,7 @@ namespace jsonrpc11
   {
   public:
 
-    void register_function(std::string name, std::shared_ptr<FunctionDefinition> fd) {
+    void register_function(std::string name, std::shared_ptr<IFunctionDefinition> fd) {
       methods_[name].push_back(fd);
     };
 
@@ -238,7 +204,7 @@ namespace jsonrpc11
     Response handle(std::string message);
 
   private:
-    std::map<std::string, std::list<std::shared_ptr<FunctionDefinition>>> methods_;
+    std::map<std::string, std::list<std::shared_ptr<IFunctionDefinition>>> methods_;
   };
 }
 
