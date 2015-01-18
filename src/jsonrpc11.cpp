@@ -15,12 +15,12 @@ namespace jsonrpc11
       return Response(Json(), Error(METHOD_NOT_FOUND, "Method not found", "Method " + req.method() + " not found"), req.id());
     Json params = req.parameters();
     auto methods = methods_[req.method()];
-    auto meth = std::find_if(methods.begin(), methods.end(), [&params, &err](std::shared_ptr<IFunctionDefinition> fd) -> bool {
-      return fd->validate_params(params, err);
+    auto meth = std::find_if(methods.begin(), methods.end(), [&params, &err](FunctionDefinition& fd) -> bool {
+      return fd.validate_params(params, err);
     });
     if (meth == methods.end())
       return Response(Json(), Error(INVALID_PARAMS, "Invalid params", err), req.id());
-    return Response((*meth)->call_with_params(params), OK, req.id());
+    return Response((*meth).call_with_params(params), OK, req.id());
   }
 
 

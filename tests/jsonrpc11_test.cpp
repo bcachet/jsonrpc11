@@ -179,5 +179,10 @@ TEST_CASE("Fun with lambda")
     REQUIRE(check_say(say_params, err) == true);
     std::function<std::tuple<string, int>(Json)> extract = args_from_named_params < string, int >(say_def) ;
     REQUIRE(extract(say_params) == std::make_tuple("fu", 3));
+    FunctionDefinition fd;
+    fd.validate_params = validate_named_params(say_def);
+    fd.call_with_params = apply_args(std::move(std::function<Json(string, int)>(say)), args_from_named_params<string, int>(say_def));
+    REQUIRE(fd.validate_params(say_params, err) == true);
+    REQUIRE(fd.call_with_params(say_params) == Json::object({{"result", "fufufu"}}));
   }
 }
