@@ -19,12 +19,10 @@ using namespace json11;
 
 namespace jsonrpc11
 {
-  template <typename ... T>
-  inline std::function<Json(Json)> apply_args(std::function<Json(T...)> cb, std::function<std::tuple<T...>(Json)> parser)
-  {
-    return [=](Json json_params)
-    {
-      return apply_tuple<std::function<Json(T...)>, std::tuple<T...>>(cb, parser(json_params));
+  template <typename Ret, typename ... Args>
+  inline std::function<Json(Json)> apply_args(std::function<Ret(Args...)> cb, std::function<std::tuple<Args...>(Json)> parser) {
+    return [=](Json json_params) {
+      return Json(apply_tuple<std::function<Ret(Args...)>, std::tuple<Args...>>(cb, parser(json_params)));
     };
   }
 
@@ -98,23 +96,24 @@ namespace jsonrpc11
       methods_[name].push_back(fd);
     };
 
-    template<typename ...Args>
-    void register_named_params_function(std::string name, Json::shape def, std::function<Json(Args...)> cb) {
+    template<typename Ret, typename ...Args>
+    void register_named_params_function(std::string name, Json::shape def, std::function<Ret(Args...)> cb) {
       register_function(name, {validate_named_params(def), apply_args(std::move(cb), args_from_named_params<Args...>(def))});
     };
 
-    template <typename ...Args>
-    void register_positional_params_function(std::string name, std::initializer_list<Json::Type> def, std::function<Json(Args...)> cb) {
+    template <typename Ret, typename ...Args>
+    void register_positional_params_function(std::string name, std::initializer_list<Json::Type> def, std::function<Ret(Args...)> cb) {
       register_function(name, {validate_positional_params(def), apply_args(std::move(cb), args_from_positional_params<Args...>())});
     };
 
-    template <typename A>
-    void register_positional_params_function_with_list(std::string name, Json::Type type, std::function<Json(std::list<A>)> cb) {
+    template <typename Ret, typename A>
+    void register_positional_params_function_with_list(std::string name, Json::Type type, std::function<Ret(std::list<A>)> cb) {
       register_function(name, {validate_params_as_list_of(type), apply_args(std::move(cb), args_from_positional_params_as_list<A>())});
     };
 
-    void register_no_params_function(std::string name, std::function<Json()> cb) {
-      register_function(name, {[](Json json_params, std::string&) {return json_params.is_null();}, [cb](Json) -> Json {return cb();}});
+    template <typename Ret>
+    void register_no_params_function(std::string name, std::function<Ret()> cb) {
+      register_function(name, {[](Json json_params, std::string&) {return json_params.is_null();}, [cb](Json) -> Json {return Json(cb());}});
     };
 
     Response handle(std::string message);

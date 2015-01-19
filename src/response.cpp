@@ -18,7 +18,7 @@ namespace jsonrpc11 {
       return Json::object{
         { "jsonrpc", "2.0" },
         { "id", id_ },
-        { "result", result_["result"] } };
+        { "result", result_ } };
     else
       return Json::object{
         { "jsonrpc", "2.0" },

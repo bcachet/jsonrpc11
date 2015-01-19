@@ -14,9 +14,9 @@ string concatenate(string what, int times) {
   return std::accumulate(words.begin(), words.end(), string());
 }
 
-Json say(string what, int times)
+string say(string what, int times)
 {
-  return Json::object{ { "result", concatenate(what, times) } };
+  return concatenate(what, times);
 }
 
 class Talker {
@@ -99,9 +99,9 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
     }
 
     SECTION("Method with complex types") {
-      server.register_named_params_function("say", { { "talker", Json::OBJECT } }, std::function<Json(Json)>([](Json const& talker) -> Json {
+      server.register_named_params_function("say", { { "talker", Json::OBJECT } }, std::function<string(Json)>([](Json const& talker) -> string {
         Talker t(talker);
-        return Json::object{ { "result", t.say() } };
+        return t.say();
       }));
       check_result_for(
         R"({"jsonrpc": "2.0", "method": "say", "params": {"talker": { "what": "fu", "times": 3}}, "id": 1})",
@@ -111,9 +111,9 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
 
   SECTION("Positional parameters") {
     SECTION("Parameters of same type T -> list<T>") {
-      server.register_positional_params_function_with_list<double>("add", { Json::NUMBER }, [](std::list<double>const& values) {
-        return Json::object{ { "result", std::accumulate(values.cbegin(), values.cend(), 0.0) } };
-      });
+      server.register_positional_params_function_with_list("add", { Json::NUMBER }, std::function<double(std::list<double>)>([](std::list<double>const& values) -> double {
+        return std::accumulate(values.cbegin(), values.cend(), 0.0);
+      }));
       SECTION("Valid request") {
         check_result_for(
           R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})",
@@ -128,8 +128,8 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
 
     SECTION("Parameters of different types") {
       server.register_positional_params_function("say", { Json::STRING, Json::NUMBER },
-          std::function<Json(string, int)>([](string what, int times) -> Json {
-        return Json::object{ { "result", concatenate(what, times) } };
+          std::function<string(string, int)>([](string what, int times) -> string {
+        return concatenate(what, times);
       }));
       SECTION("Valid request") {
         check_result_for(
@@ -143,9 +143,9 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
       }
     }
     SECTION("Parameters with complex types") {
-      server.register_positional_params_function("say", { Json::OBJECT }, std::function<Json(Json)>([](Json const& talker) {
+      server.register_positional_params_function("say", { Json::OBJECT }, std::function<string(Json)>([](Json const& talker) {
         Talker t(talker);
-        return Json::object{ { "result", t.say() } };
+        return t.say();
       }));
       SECTION("Valid request") {
         check_result_for(
@@ -181,8 +181,8 @@ TEST_CASE("Fun with lambda")
     REQUIRE(extract(say_params) == std::make_tuple("fu", 3));
     FunctionDefinition fd;
     fd.validate_params = validate_named_params(say_def);
-    fd.call_with_params = apply_args(std::move(std::function<Json(string, int)>(say)), args_from_named_params<string, int>(say_def));
+    fd.call_with_params = apply_args(std::function<string(string, int)>(say), args_from_named_params<string, int>(say_def));
     REQUIRE(fd.validate_params(say_params, err) == true);
-    REQUIRE(fd.call_with_params(say_params) == Json::object({{"result", "fufufu"}}));
+    REQUIRE(fd.call_with_params(say_params) == Json("fufufu"));
   }
 }
