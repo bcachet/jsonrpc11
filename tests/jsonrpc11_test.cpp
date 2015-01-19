@@ -45,15 +45,22 @@ bool compare_results(Json left, Json right, std::initializer_list<string> keys) 
 TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
   JsonRpcHandler server;
   auto check_result_for = [&server](string req, string resp) {
-    string err;
-    Json result = Json(server.handle(req));
-    Json expected = Json::parse(resp, err);
-    REQUIRE(compare_results(result, expected, { "jsonrpc", "id", "result" }));
-    REQUIRE(result.object_items().count("error") == expected.object_items().count("error"));
-    if (expected.object_items().count("error") > 0)
-      REQUIRE(compare_results(result["error"], expected["error"], { "code", "message" }));
-    REQUIRE(result.object_items().count("result") == expected.object_items().count("result"));
-    REQUIRE(result["result"] == expected["result"]);
+    string err = "";
+    string res_str = server.handle(req);
+    if (resp == "")
+      REQUIRE(res_str == "");
+    else {
+      Json result = Json::parse(res_str, err);
+      REQUIRE(err == ""); err = "";
+      Json expected = Json::parse(resp, err);
+      REQUIRE(err == "");
+      REQUIRE(compare_results(result, expected, { "jsonrpc", "id", "result" }));
+      REQUIRE(result.object_items().count("error") == expected.object_items().count("error"));
+      if (expected.object_items().count("error") > 0)
+        REQUIRE(compare_results(result["error"], expected["error"], { "code", "message" }));
+      REQUIRE(result.object_items().count("result") == expected.object_items().count("result"));
+      REQUIRE(result["result"] == expected["result"]);
+    }
   };
 
   SECTION("Check Json-Rpc Request validity") {
@@ -107,6 +114,9 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
         R"({"jsonrpc": "2.0", "method": "say", "params": {"talker": { "what": "fu", "times": 3}}, "id": 1})",
         R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
     }
+    SECTION("Notification do not return Response") {
+      check_result_for(R"({"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}})", "");
+    }
   }
 
   SECTION("Positional parameters") {
@@ -123,6 +133,11 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
         check_result_for(
           R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, "1", true], "id": 1})",
           R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
+      }
+      SECTION("Notification do not return Response") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1]})",
+          "");
       }
     }
 
@@ -141,6 +156,11 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
           R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3, 3], "id": 1})",
           R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
       }
+      SECTION("Notification do not return Response") {
+        check_result_for(
+          R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3]})",
+          "");
+      }
     }
     SECTION("Parameters with complex types") {
       server.register_positional_params_function("say", { Json::OBJECT }, std::function<string(Json)>([](Json const& talker) {
@@ -154,8 +174,11 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
       }
     }
   }
+}
 
-  SECTION("Testing Argument parsing") {
+TEST_CASE("Some functions")
+{
+  SECTION("Argument parsing") {
     std::tuple<int, int> t = parse<int, int>(Json::array({1, 2}));
     REQUIRE(t == std::make_tuple(1, 2));
 
@@ -165,11 +188,8 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
     std::tuple<std::list<int>> t3 = parse_to_list<int>(Json::array({ 1, 2, 3 }));
     REQUIRE(t3 == std::make_tuple(std::list<int>({ 1, 2, 3 })));
   }
-}
 
-TEST_CASE("Fun with lambda")
-{
-  SECTION("Play with lambda")
+  SECTION("Json request validation/parsing")
   {
 
     Json::shape say_def = { { "what", Json::STRING }, { "times", Json::NUMBER } };

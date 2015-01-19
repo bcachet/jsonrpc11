@@ -1,5 +1,9 @@
 #pragma once
 
+#ifdef _MSC_VER
+#pragma warning(disable:4503) // Decorated name length exceeded, name was truncated
+#endif
+
 #include <list>
 #include <functional>
 #include <algorithm>
@@ -8,14 +12,7 @@
 using namespace json11;
 
 #include "jsonrpc11/callback.hpp"
-#include "jsonrpc11/request.hpp"
-#include "jsonrpc11/response.hpp"
 #include "jsonrpc11/arguments_parser.hpp"
-
-
-#ifdef _MSC_VER
-#pragma warning(disable:4503)
-#endif
 
 namespace jsonrpc11
 {
@@ -116,7 +113,7 @@ namespace jsonrpc11
       register_function(name, {[](Json json_params, std::string&) {return json_params.is_null();}, [cb](Json) -> Json {return Json(cb());}});
     };
 
-    Response handle(std::string message);
+    std::string handle(std::string message);
 
   private:
     std::map<std::string, std::list<FunctionDefinition>> methods_;
