@@ -1,4 +1,4 @@
-#include <jsonrpc11.hpp>
+#include <jsonrpc11/response.hpp>
 
 namespace jsonrpc11 {
   using namespace json11;

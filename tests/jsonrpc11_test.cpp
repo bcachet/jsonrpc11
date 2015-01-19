@@ -167,5 +167,22 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
   }
 }
 
+TEST_CASE("Fun with lambda")
+{
+  SECTION("Play with lambda")
+  {
 
-
+    Json::shape say_def = { { "what", Json::STRING }, { "times", Json::NUMBER } };
+    Json::object say_params = Json::object({ { "what", "fu" }, { "times", 3 } });
+    std::string err = "";
+    std::function<bool(Json, std::string&)> check_say = validate_named_params(say_def);
+    REQUIRE(check_say(say_params, err) == true);
+    std::function<std::tuple<string, int>(Json)> extract = args_from_named_params < string, int >(say_def) ;
+    REQUIRE(extract(say_params) == std::make_tuple("fu", 3));
+    FunctionDefinition fd;
+    fd.validate_params = validate_named_params(say_def);
+    fd.call_with_params = apply_args(std::move(std::function<Json(string, int)>(say)), args_from_named_params<string, int>(say_def));
+    REQUIRE(fd.validate_params(say_params, err) == true);
+    REQUIRE(fd.call_with_params(say_params) == Json::object({{"result", "fufufu"}}));
+  }
+}

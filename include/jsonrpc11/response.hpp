@@ -1,6 +1,11 @@
 #pragma once
 
+#include <jsonrpc11/request.hpp>
+
+#include <string>
+
 #include <json11.hpp>
+using namespace json11;
 
 namespace jsonrpc11 {
   using namespace json11;
