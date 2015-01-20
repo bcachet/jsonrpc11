@@ -162,6 +162,7 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
           "");
       }
     }
+
     SECTION("Parameters with complex types") {
       server.register_positional_params_function("say", { Json::OBJECT }, std::function<string(Json)>([](Json const& talker) {
         Talker t(talker);
@@ -172,6 +173,25 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
           R"({"jsonrpc": "2.0", "method": "say", "params": [ {"what": "fu", "times": 3}], "id": 1})",
           R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
       }
+    }
+  }
+
+  SECTION("Multicall Support") {
+    server.register_named_params_function("say", { { "what", Json::STRING }, { "times", Json::NUMBER } }, std::function<Json(string, int)>(say));
+    SECTION("Without Notifications") {
+      check_result_for(
+        R"([{"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": 1}, {"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": "2"}])",
+        R"([{"jsonrpc": "2.0", "result": "fufufu", "id": 1}, {"jsonrpc": "2.0", "result": "fufufu", "id": "2"}])");
+    }
+    SECTION("Notification result should be omitted") {
+      check_result_for(
+        R"([{"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": 1}, {"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}}])",
+        R"([{"jsonrpc": "2.0", "result": "fufufu", "id": 1}])");
+    }
+    SECTION("Batch of notification return nothing") {
+      check_result_for(
+        R"([{"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}}, {"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}}])",
+        "");
     }
   }
 }

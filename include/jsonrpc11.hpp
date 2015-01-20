@@ -117,6 +117,7 @@ namespace jsonrpc11
 
   private:
     std::map<std::string, std::list<FunctionDefinition>> methods_;
+    Json handle_message(Json&);
   };
 }
 
