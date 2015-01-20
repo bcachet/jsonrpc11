@@ -1,18 +1,46 @@
 language: cpp
+
 compiler:
-  - clang
+  - gcc
+
+before_install:
+  # install gcc-4.8 with c++11 support: https://github.com/travis-ci-tester/travis-test-gcc-cxx-11
+  - sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y
+  - sudo apt-get update
+  - sudo apt-get install g++-4.8
+  - sudo update-alternatives --install /usr/bin/g++ g++ /usr/bin/g++-4.8 90
+  - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 90
+  # https://github.com/travis-ci-tester/travis-test-clang-cxx-11
+  - sudo apt-get install libstdc++-4.8-dev
+  - sudo pip install cpp-coveralls pyyaml
+  - sudo pip install -r docs/requirements.txt
+  - sudo apt-get install valgrind
+ 
 branches:
   only:
     - master
     - develop
+
+before_script:
+  - make prepare
+
+script: 
+  - cmake --build build --target tests
+  - valgrind --error-exitcode=1 --leak-check=full bin/tests
+
+after_success:
+  - make clean
+  - cd build
+  - cmake build -DCMAKE_CXX_FLAGS="-fprofile-arcs -ftest-coverage" ..
+  - cd ..
+  - cmake --build build --target tests
+  - bin/tests
+  - coveralls --exclude build --exclude tests --exclude thirdparty --gcov-options '\-lp' --gcov 'gcov-4.8'
+
 notifications:
   recipients:
     - bertrand.cachet@gmail.com
   email:
     on_success: change
     on_failure: change
-before_script:
-  - make prepare
-script: 
-  - make tests
 

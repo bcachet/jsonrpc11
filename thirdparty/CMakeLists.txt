@@ -30,8 +30,8 @@ ExternalProject_Add(
 
 ExternalProject_Add(
     Json11Lib
-    URL https://github.com/bcachet/json11/archive/08e11b332c327a0e97f4302f43509aeca303d4a8.zip
-    URL_MD5 451de54e159e32799f818c12c5dbb5fe
+    URL https://github.com/bcachet/json11/archive/5def29eed5eacda68904c40f9190b28da54be8d0.zip
+    URL_MD5 d7d5048ed9be6a9a82fcf2e449e38a23
     CMAKE_ARGS
       -DCMAKE_INSTALL_PREFIX=${PROJECT_SOURCE_DIR}/thirdparty
       -DPROJECT_BUILD_TESTS=NO

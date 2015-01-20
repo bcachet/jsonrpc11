@@ -3,7 +3,7 @@
 
 namespace jsonrpc11
 {
-  enum ErrorCode { NO_ERROR, PARSE_ERROR = -32700, INVALID_REQUEST = -32600, METHOD_NOT_FOUND = -32601, INVALID_PARAMS = -32602 };
+  enum ErrorCode { PARSE_ERROR = -32700, INVALID_REQUEST = -32600, METHOD_NOT_FOUND = -32601, INVALID_PARAMS = -32602 };
 
   class JsonRpcRequest {
   public:
