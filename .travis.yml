@@ -2,6 +2,7 @@ language: cpp
 
 compiler:
   - gcc
+  - clang
 
 before_install:
   # install gcc-4.8 with c++11 support: https://github.com/travis-ci-tester/travis-test-gcc-cxx-11
@@ -12,7 +13,6 @@ before_install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 90
   # https://github.com/travis-ci-tester/travis-test-clang-cxx-11
   - sudo apt-get install libstdc++-4.8-dev
-  - sudo pip install cpp-coveralls pyyaml
   - sudo pip install -r docs/requirements.txt
   - sudo apt-get install valgrind
  
@@ -27,15 +27,6 @@ before_script:
 script: 
   - cmake --build build --target tests
   - valgrind --error-exitcode=1 --leak-check=full bin/tests
-
-after_success:
-  - make clean
-  - cd build
-  - cmake build -DCMAKE_CXX_FLAGS="-fprofile-arcs -ftest-coverage" ..
-  - cd ..
-  - cmake --build build --target tests
-  - bin/tests
-  - coveralls --exclude build --exclude tests --exclude thirdparty --gcov-options '\-lp' --gcov 'gcov-4.8'
 
 notifications:
   recipients:
