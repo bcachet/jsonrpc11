@@ -15,26 +15,20 @@ using namespace jsonrpc11;
 
 const int ESCAPE = 27;
 
-Json add(std::list<double>const& values) {
-  double result = std::accumulate(values.cbegin(), values.cend(), 0.0, [](double &res, double const& x)
-  {
-    return res += static_cast<double>(x);
-  });
-  return Json::object{ { "result", result } };
+double add(std::list<double>const& values) {
+  return std::accumulate(values.begin(), values.end(), 0.0);
 }
 
-Json say(std::string const& what, int const & times)
+std::string say(std::string const& what, int const & times)
 {
-  std::string res = ""
-  for (int i = 0; i < times; ++i)
-    res += what;
-  return Json::object {{"result", res}};
+  std::list<std::string> words = std::string(times, what);
+  return std::accumulate(words.begin(), words.end(), std::string());
 }
 
 int main() {
   JsonRpcServer server(8080, TCP);
-  server.register_function("add", {Json::NUMBER}, add);
-  server.register_function<std::string, int>("say", {{"what", Json::STRING}, {"times", Json::NUMBER}}, say);
+  server.register_method<double, double>("add", {Json::NUMBER}, add);
+  server.register_method("say", {{"what", Json::STRING}, {"times", Json::NUMBER}}, std::function<std::string(std::string, int)>(say));
   server.start();
   while (std::getchar() != ESCAPE) {
   }
@@ -46,7 +40,7 @@ int main() {
 You can send order to the server with cURL command:
 
 ```sh
-curl --data "{\"jsonrpc\":\"2.0\",\"method\":\"add\",\"id\":1,\"params\":[1, 1, 1]" localhost:8080
+curl --data "{\"jsonrpc\":\"2.0\",\"method\":\"add\",\"id\":1,\"params\":[1, 1, 1]}" localhost:8080
 ```
 
 ## Build environment

@@ -88,29 +88,24 @@ namespace jsonrpc11
   class JsonRpcHandler
   {
   public:
-
-    void register_function(std::string name, FunctionDefinition fd) {
-      methods_[name].push_back(fd);
-    };
-
     template<typename Ret, typename ...Args>
-    void register_named_params_function(std::string name, Json::shape def, std::function<Ret(Args...)> cb) {
-      register_function(name, {validate_named_params(def), apply_args(std::move(cb), args_from_named_params<Args...>(def))});
+    void register_method(std::string name, Json::shape def, std::function<Ret(Args...)> cb) {
+      register_function_definition(name, {validate_named_params(def), apply_args(std::move(cb), args_from_named_params<Args...>(def))});
     };
 
     template <typename Ret, typename ...Args>
-    void register_positional_params_function(std::string name, std::initializer_list<Json::Type> def, std::function<Ret(Args...)> cb) {
-      register_function(name, {validate_positional_params(def), apply_args(std::move(cb), args_from_positional_params<Args...>())});
+    void register_method(std::string name, std::initializer_list<Json::Type> def, std::function<Ret(Args...)> cb) {
+      register_function_definition(name, {validate_positional_params(def), apply_args(std::move(cb), args_from_positional_params<Args...>())});
     };
 
     template <typename Ret, typename A>
-    void register_positional_params_function_with_list(std::string name, Json::Type type, std::function<Ret(std::list<A>)> cb) {
-      register_function(name, {validate_params_as_list_of(type), apply_args(std::move(cb), args_from_positional_params_as_list<A>())});
+    void register_method(std::string name, Json::Type type, std::function<Ret(std::list<A>)> cb) {
+      register_function_definition(name, {validate_params_as_list_of(type), apply_args(std::move(cb), args_from_positional_params_as_list<A>())});
     };
 
     template <typename Ret>
-    void register_no_params_function(std::string name, std::function<Ret()> cb) {
-      register_function(name, {[](Json json_params, std::string&) {return json_params.is_null();}, [cb](Json) -> Json {return Json(cb());}});
+    void register_method(std::string name, std::function<Ret()> cb) {
+      register_function_definition(name, {[](Json json_params, std::string&) {return json_params.is_null();}, [cb](Json) -> Json {return Json(cb());}});
     };
 
     std::string handle(std::string message);
@@ -118,6 +113,10 @@ namespace jsonrpc11
   private:
     std::map<std::string, std::list<FunctionDefinition>> methods_;
     Json handle_message(Json&);
+
+    void register_function_definition(std::string name, FunctionDefinition fd) {
+      methods_[name].push_back(fd);
+    };
   };
 }
 

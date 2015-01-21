@@ -84,8 +84,8 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
   }
 
   SECTION("Named parameters") {
-    server.register_named_params_function("say",
-        { { "what", Json::STRING }, { "times", Json::NUMBER } },
+    server.register_method("say",
+        {{"what", Json::STRING}, {"times", Json::NUMBER}},
         std::function<Json(string, int)>(say));
     SECTION("Params with invalid type") {
       check_result_for(
@@ -106,7 +106,7 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
     }
 
     SECTION("Method with complex types") {
-      server.register_named_params_function("say", { { "talker", Json::OBJECT } }, std::function<string(Json)>([](Json const& talker) -> string {
+      server.register_method("say", {{"talker", Json::OBJECT}}, std::function<string(Json)>([](Json const &talker) -> string {
         Talker t(talker);
         return t.say();
       }));
@@ -121,9 +121,9 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
 
   SECTION("Positional parameters") {
     SECTION("Parameters of same type T -> list<T>") {
-      server.register_positional_params_function_with_list("add", { Json::NUMBER }, std::function<double(std::list<double>)>([](std::list<double>const& values) -> double {
+      server.register_method<double, double>("add", {Json::NUMBER}, [](std::list<double> const &values) -> double {
         return std::accumulate(values.cbegin(), values.cend(), 0.0);
-      }));
+      });
       SECTION("Valid request") {
         check_result_for(
           R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})",
@@ -142,10 +142,10 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
     }
 
     SECTION("Parameters of different types") {
-      server.register_positional_params_function("say", { Json::STRING, Json::NUMBER },
+      server.register_method("say", {Json::STRING, Json::NUMBER},
           std::function<string(string, int)>([](string what, int times) -> string {
-        return concatenate(what, times);
-      }));
+            return concatenate(what, times);
+          }));
       SECTION("Valid request") {
         check_result_for(
           R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3], "id": 1})",
@@ -164,7 +164,7 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
     }
 
     SECTION("Parameters with complex types") {
-      server.register_positional_params_function("say", { Json::OBJECT }, std::function<string(Json)>([](Json const& talker) {
+      server.register_method("say", {Json::OBJECT}, std::function<string(Json)>([](Json const &talker) {
         Talker t(talker);
         return t.say();
       }));
@@ -177,7 +177,7 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
   }
 
   SECTION("Multicall Support") {
-    server.register_named_params_function("say", { { "what", Json::STRING }, { "times", Json::NUMBER } }, std::function<Json(string, int)>(say));
+    server.register_method("say", {{"what", Json::STRING}, {"times", Json::NUMBER}}, std::function<Json(string, int)>(say));
     SECTION("Without Notifications") {
       check_result_for(
         R"([{"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": 1}, {"jsonrpc": "2.0", "method": "say", "params": {"what": "fu", "times": 3}, "id": "2"}])",

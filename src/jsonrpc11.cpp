@@ -44,7 +44,7 @@ namespace jsonrpc11
     std::string err = "";
     if (!req.is_valid())
       return error(req.id, INVALID_REQUEST, "Invalid Request", err);
-    if (!(methods_.count(req.method) > 0))
+    if ((methods_.count(req.method) == 0))
       return error(req.id, METHOD_NOT_FOUND, "Method not found", "Method " + req.method + " not found");
     Json params = req.params;
     auto methods = methods_[req.method];
