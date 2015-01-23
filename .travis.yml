@@ -22,7 +22,10 @@ branches:
     - develop
 
 before_script:
-  - make prepare
+  - mkdir build
+  - cd build
+  - cmake ..
+  - cd ..
 
 script: 
   - cmake --build build --target tests
