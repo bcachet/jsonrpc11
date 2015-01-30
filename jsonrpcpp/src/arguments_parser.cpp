@@ -1,6 +1,6 @@
-#include <jsonrpc11/arguments_parser.hpp>
+#include <jsonrpcpp/arguments_parser.hpp>
 
-namespace jsonrpc11
+namespace jsonrpcpp
 {
   template<typename R>
   R get_value(Json p)

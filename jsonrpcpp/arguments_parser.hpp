@@ -7,7 +7,7 @@ using namespace json11;
 #include <tuple>
 #include <algorithm>
 
-namespace jsonrpc11
+namespace jsonrpcpp
 {
 
   template<typename R>

@@ -11,10 +11,10 @@
 #include <json11.hpp>
 using namespace json11;
 
-#include "jsonrpc11/callback.hpp"
-#include "jsonrpc11/arguments_parser.hpp"
+#include "jsonrpcpp/callback.hpp"
+#include "jsonrpcpp/arguments_parser.hpp"
 
-namespace jsonrpc11
+namespace jsonrpcpp
 {
   template <typename Ret, typename ... Args>
   inline std::function<Json(Json)> apply_args(std::function<Ret(Args...)> cb, std::function<std::tuple<Args...>(Json)> parser) {

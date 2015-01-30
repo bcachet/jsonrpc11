@@ -1,4 +1,4 @@
-# jsonrpc11 [![Build Status](https://travis-ci.org/bcachet/jsonrpc11.svg)](https://travis-ci.org/bcachet/jsonrpc11)
+# jsonrpcpp [![Build Status](https://travis-ci.org/bcachet/jsonrpcpp.svg)](https://travis-ci.org/bcachet/jsonrpcpp)
 
 JSON-RPC server based on [json11](https://github.com/dropbox/json11) library.
 
@@ -10,8 +10,8 @@ JSON-RPC server based on [json11](https://github.com/dropbox/json11) library.
 #include <numeric>
 #include <list>
 
-#include <jsonrpc11.hpp>
-using namespace jsonrpc11;
+#include <jsonrpcpp.hpp>
+using namespace jsonrpcpp;
 
 const int ESCAPE = 27;
 

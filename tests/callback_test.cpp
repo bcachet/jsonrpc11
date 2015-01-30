@@ -1,6 +1,6 @@
 #include <catch.hpp>
 
-#include <jsonrpc11/callback.hpp>
+#include <jsonrpcpp/callback.hpp>
 
 #include <list>
 #include <numeric>

@@ -1,79 +1,64 @@
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8)
-SET(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMake)
+cmake_minimum_required(VERSION 2.8.0 FATAL_ERROR)
 
-SET(LIBRARY_NAME jsonrpc11)
-SET(LIBRARY_VERSION_STRING 0.1.0)
+#-----------------------------------------------------------------------
+# CPM configuration
+#-----------------------------------------------------------------------
+set(CPM_MODULE_NAME "jsonrpcpp")
+set(CPM_LIB_TARGET_NAME ${CPM_MODULE_NAME})
 
-PROJECT(${LIBRARY_NAME})
-
-SET(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/CMake)
-
-INCLUDE_DIRECTORIES(${PROJECT_SOURCE_DIR}/include)
-
-################################################
-#   COMPILATION FLAGS
-################################################
-
-if (MSVC)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /W4 /MP ")
+if ((DEFINED CPM_DIR) AND (DEFINED CPM_UNIQUE_ID) AND (DEFINED CPM_TARGET_NAME))
+  set(CPM_LIB_TARGET_NAME ${CPM_TARGET_NAME})
+  set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CPM_DIR})
+  include(CPM)
 else()
-  # Assume GCC-style arguments
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wfatal-errors -Wall -W -Werror -Wfloat-equal -Wundef -Wendif-labels")
-
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-    # TODO: Use CMAKE_CXX_COMPILER_VERSION to check GCC version when Travis support CMake 2.8.8
-    execute_process(COMMAND ${CMAKE_CXX_COMPILER} -dumpversion OUTPUT_VARIABLE GCC_VERSION)
-    if(GCC_VERSION VERSION_LESS "4.7")
-      message(WARNING "C++0x activated. If you get any errors update to a compiler which fully supports C++11")
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++0x")
-    else()
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  set (CPM_DIR "${CMAKE_CURRENT_BINARY_DIR}/cpm-packages" CACHE TYPE STRING)
+  find_package(Git)
+  if(NOT GIT_FOUND)
+    message(FATAL_ERROR "CPM requires Git.")
+  endif()
+  if (NOT EXISTS ${CPM_DIR}/CPM.cmake)
+    message(STATUS "Cloning repo (https://github.com/iauns/cpm)")
+    execute_process(
+      COMMAND "${GIT_EXECUTABLE}" clone https://github.com/iauns/cpm ${CPM_DIR}
+      RESULT_VARIABLE error_code
+      OUTPUT_QUIET ERROR_QUIET)
+    if(error_code)
+      message(FATAL_ERROR "CPM failed to get the hash for HEAD")
     endif()
   endif()
-
-  if(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
-      set(CMAKE_COMPILER_IS_CLANGXX 1)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-  endif()
+  include(${CPM_DIR}/CPM.cmake)
 endif()
 
-if (CMAKE_HOST_APPLE AND (CMAKE_CXX_COMPILER_ID STREQUAL "Clang"))
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+CPM_AddModule("socketpp"
+    GIT_REPOSITORY "https://github.com/bcachet/socketpp"
+    GIT_TAG origin/develop
+    EXPORT_MODULE TRUE)
+
+CPM_AddModule("json11"
+    GIT_REPOSITORY "https://github.com/bcachet/json11"
+    GIT_TAG origin/feature/ADD_CPMSupport
+    EXPORT_MODULE TRUE)
+
+CPM_InitModule(${CPM_MODULE_NAME})
+
+#-----------------------------------------------------------------------
+# Source
+#-----------------------------------------------------------------------
+file(GLOB Sources
+  "${CPM_MODULE_NAME}/src/*.cpp"
+  "${CPM_MODULE_NAME}/*.hpp")
+
+#-----------------------------------------------------------------------
+# C++11
+#-----------------------------------------------------------------------
+if (UNIX)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+  if (APPLE AND (NOT CMAKE_COMPILER_IS_GNUCXX))
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
+  endif ()
 endif()
 
-##############################################################
-# We install requirements in thirdparty directory
-##############################################################
-SET(THIRDPARTY_DIR ${PROJECT_SOURCE_DIR}/thirdparty)
-INCLUDE_DIRECTORIES(${THIRDPARTY_DIR}/include)
-LINK_DIRECTORIES(${THIRDPARTY_DIR}/lib)
-SET(CMAKE_INCLUDE_PATH ${THIRDPARTY_DIR}/include ${CMAKE_INCLUDE_PATH})
-SET(CMAKE_LIBRARY_PATH ${THIRDPARTY_DIR}/lib ${CMAKE_LIBRARY_PATH})
-ADD_SUBDIRECTORY(${THIRDPARTY_DIR})
-
-FILE(MAKE_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin)
-SET(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${PROJECT_SOURCE_DIR}/bin)
-
-ADD_SUBDIRECTORY(src)
-
-##############################################################
-# Tests
-##############################################################
-ADD_SUBDIRECTORY(tests)
-
-ENABLE_TESTING()
-ADD_TEST(unittests ${PROJECT_SOURCE_DIR}/bin/tests)
-
-
-SET(USE_VIM_CLANG_COMPLETE YES CACHE BOOL "If set, will generate a .clang_complete file used by Vim clang_complete plugin")
-IF(USE_VIM_CLANG_COMPLETE)
-  ################################################
-  #   GENERATE VIM CLANG_COMPLETE FILE
-  ################################################
-  GET_PROPERTY(PROJECT_HEADERS DIRECTORY tests PROPERTY INCLUDE_DIRECTORIES)
-  FILE(WRITE .clang_complete "")
-  FOREACH(PATH ${PROJECT_HEADERS})
-    FILE(APPEND .clang_complete "-I${PATH}\n")
-  ENDFOREACH(PATH)
-ENDIF()
+# Build the library.
+add_library(${CPM_LIB_TARGET_NAME} ${Sources})
+target_link_libraries(${CPM_LIB_TARGET_NAME} ${CPM_LIBRARIES})

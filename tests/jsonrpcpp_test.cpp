@@ -3,10 +3,10 @@
 
 #include <catch.hpp>
 
-#include <jsonrpc11.hpp>
+#include <jsonrpcpp/jsonrpcpp.hpp>
 
 
-using namespace jsonrpc11;
+using namespace jsonrpcpp;
 using std::string;
 
 string concatenate(string what, int times) {

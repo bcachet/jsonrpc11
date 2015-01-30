@@ -13,7 +13,6 @@ before_install:
   - sudo update-alternatives --install /usr/bin/gcc gcc /usr/bin/gcc-4.8 90
   # https://github.com/travis-ci-tester/travis-test-clang-cxx-11
   - sudo apt-get install libstdc++-4.8-dev
-  - sudo pip install -r docs/requirements.txt
   - sudo apt-get install valgrind
  
 branches:
@@ -22,13 +21,14 @@ branches:
     - develop
 
 before_script:
-  - mkdir build
-  - cd build
-  - cmake ..
+  - cd tests
+  - mkdir -p bin
+  - cd bin
+  - cmake -Wno-dev ..
   - cd ..
 
 script: 
-  - cmake --build build --target tests
+  - cmake --build bin --target tests
   - valgrind --error-exitcode=1 --leak-check=full bin/tests
 
 notifications:

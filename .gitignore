@@ -1,42 +1,8 @@
-build
-bin
-
-# Compiled Object files
-*.slo
-*.lo
-*.o
-*.pdb
-*.ilk
-
-# Compiled Dynamic libraries
-*.so
-*.dll
-
-!thirdparty/CMakeLists.txt
-thirdparty/include
-thirdparty/lib
-thirdparty/bin
-
-# Compiled Static libraries
-*.lai
-*.la
-*.a
-*.lib
-
-# Executable
-*.exe
-*.out
-
 # VIM related files
 *.swp
-.clang_complete
 
 # CLion
-.idea
+*.idea
 
-# CTest
-Testing
-
-# Python stuff (Sphinx documentation)
+# Python stuff
 *.pyc
-
