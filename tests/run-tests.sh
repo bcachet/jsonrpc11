@@ -1,16 +1,37 @@
 #!/bin/bash
 cd "$(dirname "$0")"
 
-if [ ! -d ./bin ]; then
-  mkdir -p ./bin
-fi
-
 # Ensure we fail immediately if any command fails.
 set -e
 
-pushd ./bin > /dev/null
-  cmake -Wno-dev -DCPM_SHOW_HIERARCHY=TRUE ..
-  cmake --build . --target tests
-  ./tests
-popd
+# Prepare environment if not existing
+prepare() {
+  mkdir -p ./bin
+  pushd ./bin > /dev/null
+    cmake -Wno-dev -DCPM_SHOW_HIERARCHY=TRUE ..
+  popd
+}
 
+build() {
+  pushd ./bin > /dev/null
+    cmake --build . --target tests
+  popd
+}
+
+run() {
+  ./bin/tests
+}
+
+if [ ! -d ./bin ]; then
+  prepare
+fi
+
+while getopts "f" opt; do
+    case "$opt" in
+    f)  prepare
+        ;;
+    esac
+done
+
+build
+run
