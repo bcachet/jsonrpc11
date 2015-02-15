@@ -35,8 +35,8 @@ CPM_AddModule("socketpp"
     EXPORT_MODULE TRUE)
 
 CPM_AddModule("json11"
-    GIT_REPOSITORY "https://github.com/bcachet/json11"
-    GIT_TAG origin/feature/ADD_CPMSupport
+    GIT_REPOSITORY "https://github.com/bcachet/cpm-json11"
+    GIT_TAG origin/master
     EXPORT_MODULE TRUE)
 
 CPM_InitModule(${CPM_MODULE_NAME})
