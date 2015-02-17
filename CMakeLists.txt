@@ -39,6 +39,11 @@ CPM_AddModule("json11"
     GIT_TAG origin/master
     EXPORT_MODULE TRUE)
 
+CPM_AddModule("Fit"
+    GIT_REPOSITORY "https://github.com/bcachet/cpm-Fit"
+    GIT_TAG origin/master
+    EXPORT_MODULE TRUE)
+
 CPM_InitModule(${CPM_MODULE_NAME})
 
 #-----------------------------------------------------------------------

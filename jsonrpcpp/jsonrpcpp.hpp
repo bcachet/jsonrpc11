@@ -11,15 +11,18 @@
 #include <json11.hpp>
 using namespace json11;
 
-#include "jsonrpcpp/callback.hpp"
+#include <fit/invoke.h>
+
 #include "jsonrpcpp/arguments_parser.hpp"
+
+
 
 namespace jsonrpcpp
 {
   template <typename Ret, typename ... Args>
   inline std::function<Json(Json)> apply_args(std::function<Ret(Args...)> cb, std::function<std::tuple<Args...>(Json)> parser) {
     return [=](Json json_params) {
-      return Json(apply_tuple<std::function<Ret(Args...)>, std::tuple<Args...>>(cb, parser(json_params)));
+      return Json(fit::invoke(cb, parser(json_params)));
     };
   }
 
