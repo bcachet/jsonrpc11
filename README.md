@@ -1,4 +1,4 @@
-# jsonrpcpp [![Build Status](https://travis-ci.org/bcachet/jsonrpcpp.svg)](https://travis-ci.org/bcachet/jsonrpcpp)
+# jsonrpcpp [![Build Status](https://travis-ci.org/bcachet/jsonrpc11.svg)](https://travis-ci.org/bcachet/jsonrpc11)
 
 JSON-RPC server based on [json11](https://github.com/dropbox/json11) library.
 
