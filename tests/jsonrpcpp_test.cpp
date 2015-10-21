@@ -1,12 +1,11 @@
-#include <iostream>
-#include <numeric>
-
 #include <catch.hpp>
 
 #include <jsonrpcpp/jsonrpcpp.hpp>
-
-
 using namespace jsonrpcpp;
+
+#include <iostream>
+#include <numeric>
+#include <string>
 using std::string;
 
 string concatenate(string what, int times) {
@@ -14,8 +13,7 @@ string concatenate(string what, int times) {
   return std::accumulate(words.begin(), words.end(), string());
 }
 
-string say(string what, int times)
-{
+string say(string what, int times) {
   return concatenate(what, times);
 }
 
@@ -121,22 +119,22 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
 
   SECTION("Positional parameters") {
     SECTION("Parameters of same type T -> list<T>") {
-      server.register_method<double, double>("add", {Json::NUMBER}, [](std::list<double> const &values) -> double {
+      server.register_method<double, double>("add", Json::NUMBER, [](std::list<double> const &values) -> double {
         return std::accumulate(values.cbegin(), values.cend(), 0.0);
       });
       SECTION("Valid request") {
         check_result_for(
-          R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1], "id": 1})",
+          R"({"jsonrpc": "2.0", "method": "add", "params": [1, 1, 1], "id": 1})",
           R"({"jsonrpc": "2.0", "result": 3, "id": 1})");
       }
       SECTION("Request composed of params of different types") {
         check_result_for(
-          R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, "1", true], "id": 1})",
+          R"({"jsonrpc": "2.0", "method": "add", "params": [1, "1", true], "id": 1})",
           R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
       }
       SECTION("Notification do not return Response") {
         check_result_for(
-          R"({"jsonrpc": "2.0", "method": "add", "params": [ 1, 1, 1]})",
+          R"({"jsonrpc": "2.0", "method": "add", "params": [1, 1, 1]})",
           "");
       }
     }
@@ -148,17 +146,17 @@ TEST_CASE("Json-Rpc request handling", "[jsonrpc]") {
           }));
       SECTION("Valid request") {
         check_result_for(
-          R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3], "id": 1})",
+          R"({"jsonrpc": "2.0", "method": "say", "params": ["fu", 3], "id": 1})",
           R"({"jsonrpc": "2.0", "result": "fufufu", "id": 1})");
       }
       SECTION("Request with too much params") {
         check_result_for(
-          R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3, 3], "id": 1})",
+          R"({"jsonrpc": "2.0", "method": "say", "params": ["fu", 3, 3], "id": 1})",
           R"({"jsonrpc": "2.0", "error": {"code": -32602, "message": "Invalid params"}, "id": 1})");
       }
       SECTION("Notification do not return Response") {
         check_result_for(
-          R"({"jsonrpc": "2.0", "method": "say", "params": [ "fu", 3]})",
+          R"({"jsonrpc": "2.0", "method": "say", "params": ["fu", 3]})",
           "");
       }
     }

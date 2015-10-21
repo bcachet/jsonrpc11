@@ -7,6 +7,7 @@
 #include <list>
 #include <functional>
 #include <algorithm>
+#include <iterator>
 
 #include <json11.hpp>
 using namespace json11;
@@ -102,22 +103,21 @@ namespace jsonrpcpp
   };
 
 
-  class JsonRpcHandler
-  {
+  class JsonRpcHandler {
   public:
     template<typename Ret, typename ...Args>
     void register_method(std::string name, Json::shape def, std::function<Ret(Args...)> cb) {
       register_function_definition(name, {validate_named_params(def), apply_args(std::move(cb), args_from_named_params<Args...>(def))});
     };
 
-    template <typename Ret, typename ...Args>
-    void register_method(std::string name, std::initializer_list<Json::Type> def, std::function<Ret(Args...)> cb) {
-      register_function_definition(name, {validate_positional_params(def), apply_args(std::move(cb), args_from_positional_params<Args...>())});
-    };
-
     template <typename Ret, typename A>
     void register_method(std::string name, Json::Type type, std::function<Ret(std::list<A>)> cb) {
       register_function_definition(name, {validate_params_as_list_of(type), apply_args(std::move(cb), args_from_positional_params_as_list<A>())});
+    };
+
+    template <typename Ret, typename ...Args>
+    void register_method(std::string name, std::initializer_list<Json::Type> def, std::function<Ret(Args...)> cb) {
+      register_function_definition(name, {validate_positional_params(def), apply_args(std::move(cb), args_from_positional_params<Args...>())});
     };
 
     template <typename Ret>
@@ -136,5 +136,3 @@ namespace jsonrpcpp
     };
   };
 }
-
-

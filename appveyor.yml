@@ -1,0 +1,18 @@
+environment:
+  matrix:
+    - CMAKE_GENERATOR: "Visual Studio 14 2015"
+      CONFIG: Debug
+
+before_build:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - mkdir tests\bin
+  - cd tests\bin
+  - cmake .. -G"%CMAKE_GENERATOR%"
+
+build_script:
+  - cmake --build %APPVEYOR_BUILD_FOLDER%\tests\bin --config %CONFIG% --target tests
+
+test_script:
+  - cd %APPVEYOR_BUILD_FOLDER%
+  - tests\bin\tests.exe -r xml -o tests\bin\results.xml
+  - ps: (New-Object 'System.Net.WebClient').UploadFile("https://ci.appveyor.com/api/testresults/xunit/$($env:APPVEYOR_JOB_ID)", (Resolve-Path .\tests\bin\results.xml))
