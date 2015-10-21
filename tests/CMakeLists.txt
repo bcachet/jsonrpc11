@@ -35,10 +35,34 @@ if (NOT EXISTS ${CPM_DIR}/CPM.cmake)
 endif()
 include(${CPM_DIR}/CPM.cmake)
 
+
 #-----------------------------------------------------------------------
-# CPM Modules
+# Compilation flags
 #-----------------------------------------------------------------------
-# ++ MODULE: socketpp
+if(MSVC)
+    add_definitions(/Ob1) # Inline methods marked as inlined
+    add_definitions(/W4)
+    add_definitions(/w44640) # Warning on thread un-safe static member
+else()
+    #-----------------------------------------------------------------------
+    # C++11 support
+    #-----------------------------------------------------------------------
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    if(CMAKE_HOST_APPLE)
+        include(CheckCXXCompilerFlag)
+        enable_language(CXX)
+        check_cxx_compiler_flag("-stdlib=libc++" COMPILER_HAS_CXX_FLAG_libcxx)
+        if(COMPILER_HAS_CXX_FLAG_libcxx)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
+        endif()
+    endif()
+endif()
+
+
+#-----------------------------------------------------------------------
+# Dependencies
+#-----------------------------------------------------------------------
 CPM_AddModule("jsonrpcpp"
   SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}/.."
   EXPORT_MODULE TRUE)
@@ -49,30 +73,19 @@ CPM_AddModule("catch"
 
 CPM_Finish()
 
+
 #-----------------------------------------------------------------------
-# Setup executable
+# Source
 #-----------------------------------------------------------------------
 file(GLOB Sources
   "*.cpp"
   "*.hpp"
   )
-#-----------------------------------------------------------------------
-#     C++11 support
-#-----------------------------------------------------------------------
-if (UNIX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-  if (APPLE AND (NOT CMAKE_COMPILER_IS_GNUCXX))
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
-  endif ()
-endif ()
 
-if (UNIX)
-  if (NOT APPLE)
-    set(PTHREADS "-pthread")
-  endif()
-endif()
 
+#-----------------------------------------------------------------------
+# Tests
+#-----------------------------------------------------------------------
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_CURRENT_SOURCE_DIR}/bin)
 
 add_executable(tests ${Sources})
@@ -80,6 +93,10 @@ target_link_libraries(tests
   ${CPM_LIBRARIES}
   ${PTHREADS})
 
+
+#-----------------------------------------------------------------------
+# VIM support
+#-----------------------------------------------------------------------
 SET(USE_VIM_CLANG YES CACHE BOOL "If set, will generate a .clang_complete file used by Vim vim-clang plugin")
 IF(USE_VIM_CLANG)
   ################################################

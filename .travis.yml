@@ -21,20 +21,17 @@ branches:
     - develop
 
 before_script:
-  - cd tests
-  - mkdir -p bin
-  - cd bin
-  - cmake -Wno-dev ..
-  - cd ..
+  - tests/run.sh -g
 
-script: 
-  - cmake --build bin --target tests
+script:
+  - tests/run.sh -b
   - valgrind --error-exitcode=1 --leak-check=full bin/tests
 
 notifications:
   recipients:
-    - bertrand.cachet@gmail.com
+    - {{ cookiecutter.email }}
   email:
     on_success: change
     on_failure: change
+
 

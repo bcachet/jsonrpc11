@@ -29,6 +29,34 @@ else()
   include(${CPM_DIR}/CPM.cmake)
 endif()
 
+
+#-----------------------------------------------------------------------
+# Compilation flags
+#-----------------------------------------------------------------------
+if(MSVC)
+    add_definitions(/Ob1) # Inline methods marked as inlined
+    add_definitions(/W4)
+    add_definitions(/w44640) # Warning on thread un-safe static member
+else()
+    #-----------------------------------------------------------------------
+    # C++11 support
+    #-----------------------------------------------------------------------
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
+    if(CMAKE_HOST_APPLE)
+        include(CheckCXXCompilerFlag)
+        enable_language(CXX)
+        check_cxx_compiler_flag("-stdlib=libc++" COMPILER_HAS_CXX_FLAG_libcxx)
+        if(COMPILER_HAS_CXX_FLAG_libcxx)
+            set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
+            set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
+        endif()
+    endif()
+endif()
+
+
+#-----------------------------------------------------------------------
+# Dependencies
+#-----------------------------------------------------------------------
 CPM_AddModule("socketpp"
     GIT_REPOSITORY "https://github.com/bcachet/socketpp"
     GIT_TAG origin/develop
@@ -46,6 +74,7 @@ CPM_AddModule("Fit"
 
 CPM_InitModule(${CPM_MODULE_NAME})
 
+
 #-----------------------------------------------------------------------
 # Source
 #-----------------------------------------------------------------------
@@ -53,17 +82,9 @@ file(GLOB Sources
   "${CPM_MODULE_NAME}/src/*.cpp"
   "${CPM_MODULE_NAME}/*.hpp")
 
-#-----------------------------------------------------------------------
-# C++11
-#-----------------------------------------------------------------------
-if (UNIX)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11")
-  if (APPLE AND (NOT CMAKE_COMPILER_IS_GNUCXX))
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -stdlib=libc++")
-    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -stdlib=libc++")
-  endif ()
-endif()
 
+#-----------------------------------------------------------------------
 # Build the library.
+#-----------------------------------------------------------------------
 add_library(${CPM_LIB_TARGET_NAME} ${Sources})
 target_link_libraries(${CPM_LIB_TARGET_NAME} ${CPM_LIBRARIES})
