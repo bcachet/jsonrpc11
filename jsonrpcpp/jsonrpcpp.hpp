@@ -11,18 +11,32 @@
 #include <json11.hpp>
 using namespace json11;
 
-#include <fit/invoke.h>
+#include <fit/unpack.h>
 
 #include "jsonrpcpp/arguments_parser.hpp"
 
-
+// TODO: Split RPC server/client from Json serialization. We need object that we will manipulate from our RPC server and that will be serialize to/from exchange format (XML/JSON)
+/*
+ * class IRPCValue {
+ *  public:
+ *    const & IRPCValue operator[](const std::string);
+ *    const & IRPCValue operator[](size_t);
+ *
+ *    std::string string_value();
+ *    int int_value();
+ *    double number_value();
+ *    bool bool_value();
+ *    const std::vector<IRPCValue> & array_items();
+ *    const std::map<std::string, IRPCValue> & object_items();
+ * }
+ */
 
 namespace jsonrpcpp
 {
   template <typename Ret, typename ... Args>
   inline std::function<Json(Json)> apply_args(std::function<Ret(Args...)> cb, std::function<std::tuple<Args...>(Json)> parser) {
     return [=](Json json_params) {
-      return Json(fit::invoke(cb, parser(json_params)));
+      return Json(fit::unpack(cb)(parser(json_params)));
     };
   }
 

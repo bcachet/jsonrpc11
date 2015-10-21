@@ -79,3 +79,16 @@ add_executable(tests ${Sources})
 target_link_libraries(tests
   ${CPM_LIBRARIES}
   ${PTHREADS})
+
+SET(USE_VIM_CLANG YES CACHE BOOL "If set, will generate a .clang_complete file used by Vim vim-clang plugin")
+IF(USE_VIM_CLANG)
+  ################################################
+  #   GENERATE VIM CLANG_COMPLETE FILE
+  ################################################
+  GET_PROPERTY(PROJECT_HEADERS DIRECTORY . PROPERTY INCLUDE_DIRECTORIES)
+  FILE(WRITE ../.clang "")
+  FOREACH(PATH ${PROJECT_HEADERS})
+    FILE(APPEND ../.clang "-I${PATH}\n")
+  ENDFOREACH(PATH)
+ENDIF()
+

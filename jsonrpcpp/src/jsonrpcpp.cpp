@@ -12,7 +12,10 @@ namespace jsonrpcpp
     Json params;
     Json id;
 
-    JsonRpcRequest(Json&& msg) : jsonrpc(msg["jsonrpc"].string_value()), method(msg["method"].string_value()), params(msg["params"]), id(msg["id"])
+    JsonRpcRequest(Json&& msg)
+        : jsonrpc(msg["jsonrpc"].string_value()),
+          method(msg["method"].string_value()),
+          params(msg["params"]), id(msg["id"])
     { }
 
     bool is_valid() {

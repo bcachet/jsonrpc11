@@ -1,5 +1,6 @@
 # VIM related files
 *.swp
+.clang*
 
 # CLion
 *.idea
